@@ -14,3 +14,5 @@
 2026-10-22 11:32 MUTATE: traffic-microsim learns two-lane ring tracks and scheduled arrivals (both landed in PR #20/#21, future engine work must keep their invariants)
 2026-10-22 11:44 ENERGY: traffic-microsim stays 95, sim-api 95 (arm bearings for real street angles, asked by amad, PR #23)
 2026-10-22 11:48 MUTATE: sim-api adds a local pre-deploy chain run with all plugins (integrated spore smsf-5)
+2026-10-22 12:33 SPLIT: traffic-microsim -> traffic-microsim (70) + junction-conflicts (60) (energy 95 over threshold; second right-of-way bug: straight-on movements never conflicted, PR #29)
+2026-10-22 12:33 MUTATE: sim-calibration 90, delay must include unserved vehicles and report unservedShare (survivor bias found by backend, engine 0.5.0)
