@@ -4,7 +4,7 @@ type: capability
 domain: frontend
 tools: Read, Write, Edit, Bash
 model: sonnet
-energy: 50
+energy: 55
 spawned: 2026-10-22
 can-merge-with: []
 ---
@@ -32,3 +32,4 @@ The per tile at `board/public/colony/per/`: metrics dashboard and side-by-side d
 ## Evolution History
 
 - 2026-10-22: Spawned at awakening
+- 2026-10-22: energy 50 -> 55 (tile built; will grow when amad consumes /t/per)

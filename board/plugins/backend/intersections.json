@@ -248,8 +248,8 @@
     {
       "id": "valhallavagen-birgerjarlsgatan",
       "name": "Valhallavägen / Birger Jarlsgatan",
-      "lat": 59.3478,
-      "lon": 18.0705,
+      "lat": 59.3501,
+      "lon": 18.0591,
       "source": "Stockholm stad traffic counts (ADT, estimated)",
       "estimated": true,
       "arms": {

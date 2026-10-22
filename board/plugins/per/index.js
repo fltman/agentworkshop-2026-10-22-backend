@@ -71,7 +71,7 @@ module.exports = {
         let runIds = body.runIds;
         if (!runIds && body.designs && body.demand) {
           const r = await call('POST', '/t/martin/compare', { designs: body.designs, demand: body.demand });
-          runIds = (r.runs || []).map((x) => x.runId || x.id);
+          runIds = (r.results || r.runs || []).map((x) => x.runId || x.id);
         }
         if (!Array.isArray(runIds) || runIds.length < 2) {
           sendJson(res, 400, { error: 'need at least two runIds' });

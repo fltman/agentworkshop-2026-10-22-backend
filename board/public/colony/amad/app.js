@@ -5,7 +5,11 @@ const $ = (id) => document.getElementById(id);
 const ARMS = ['N', 'E', 'S', 'W'];
 const scene = new Scene($('cv'));
 
-const state = { demand: null, design: null, designs: [], runId: null, hasFrames: false };
+const state = {
+  demand: null, design: null, designs: [], runId: null, hasFrames: false,
+  demandQuery: null, // params of the backend demand being edited; null = manual (local-only) demand
+  editedArms: new Set(), // arms the user changed, sent as overrides to POST /t/backend/demand
+};
 
 function showError(e) {
   const el = $('error');
@@ -33,32 +37,100 @@ const emptyDemand = () => ({
   }])),
 });
 
+// Arms shown/edited: backend demand only has the arms the intersection has (overriding others is a 400).
+const demandArms = () => (state.demandQuery ? ARMS.filter((a) => state.demand.arms[a]) : ARMS);
+const DEFAULT_MIX = { car: 0.85, bus: 0.05, truck: 0.1 };
+const pct = (v) => Math.round((v ?? 0) * 100);
+
+// Value an input should show for the current state.demand.
+function inputValue(i) {
+  const arms = state.demand.arms;
+  if (i.dataset.mix) {
+    const first = arms[demandArms()[0]] || {};
+    return pct((first.mix || DEFAULT_MIX)[i.dataset.mix]);
+  }
+  const x = arms[i.dataset.a] || {};
+  if (i.dataset.t) return pct(x.turning?.[i.dataset.t]);
+  return x[i.dataset.k] ?? 0;
+}
+
 function renderDemand() {
   const d = state.demand;
+  const arms = demandArms();
   const head = '<div class="armrow head"><span></span><span>veh/h</span><span>L%</span><span>S%</span><span>R%</span><span>ped/h</span><span>bike/h</span></div>';
-  const rows = ARMS.map((a) => {
-    const x = d.arms[a] || (d.arms[a] = emptyDemand().arms[a]);
+  const rows = arms.map((a) => {
+    if (!d.arms[a]) d.arms[a] = emptyDemand().arms[a];
     return `<div class="armrow"><b>${a}</b>
-      <input data-a="${a}" data-k="vehPerHour" type="number" value="${x.vehPerHour}">
-      ${['L', 'S', 'R'].map((t) => `<input data-a="${a}" data-t="${t}" type="number" value="${Math.round((x.turning?.[t] ?? 0) * 100)}">`).join('')}
-      <input data-a="${a}" data-k="pedPerHour" type="number" value="${x.pedPerHour ?? 0}">
-      <input data-a="${a}" data-k="bikePerHour" type="number" value="${x.bikePerHour ?? 0}"></div>`;
+      <input data-a="${a}" data-k="vehPerHour" type="number" min="0" step="1">
+      ${['L', 'S', 'R'].map((t) => `<input data-a="${a}" data-t="${t}" type="number" min="0">`).join('')}
+      <input data-a="${a}" data-k="pedPerHour" type="number" min="0" step="1">
+      <input data-a="${a}" data-k="bikePerHour" type="number" min="0" step="1"></div>`;
   }).join('');
-  const m = d.arms.N.mix || { car: 0.85, bus: 0.05, truck: 0.1 };
   const mix = `<div class="armrow"><b>mix</b>${['car', 'bus', 'truck'].map((c) =>
-    `<input data-mix="${c}" type="number" value="${Math.round((m[c] ?? 0) * 100)}" title="${c} %">`).join('')}<span>% car/bus/truck</span></div>`;
+    `<input data-mix="${c}" type="number" min="0" title="${c} %">`).join('')}<span>% car/bus/truck</span></div>`;
   $('demand').innerHTML = head + rows + mix;
-  $('demand').querySelectorAll('input').forEach((i) => i.addEventListener('input', onDemandInput));
+  $('demand').querySelectorAll('input').forEach((i) => {
+    i.value = inputValue(i);
+    i.addEventListener('input', onDemandInput);
+    // a focused field is not overwritten while typing; resync it with the normalised value on blur
+    i.addEventListener('blur', () => { i.value = inputValue(i); });
+  });
+}
+
+// Update existing inputs in place (keeps focus/caret); the focused input is left as the user typed it.
+function refreshDemandInputs() {
+  $('demand').querySelectorAll('input').forEach((i) => {
+    if (i !== document.activeElement) i.value = inputValue(i);
+  });
 }
 
 function onDemandInput(e) {
-  const i = e.target, v = +i.value;
+  const i = e.target;
+  const v = Math.max(0, Number(i.value) || 0);
+  const dm = state.demand;
   if (i.dataset.mix) {
-    for (const a of ARMS) { d().arms[a].mix = d().arms[a].mix || {}; d().arms[a].mix[i.dataset.mix] = v / 100; }
-  } else if (i.dataset.t) d().arms[i.dataset.a].turning[i.dataset.t] = v / 100;
-  else d().arms[i.dataset.a][i.dataset.k] = v;
+    for (const a of demandArms()) {
+      dm.arms[a].mix = { ...(dm.arms[a].mix || DEFAULT_MIX), [i.dataset.mix]: v / 100 };
+      state.editedArms.add(a);
+    }
+  } else if (i.dataset.t) {
+    dm.arms[i.dataset.a].turning = { ...(dm.arms[i.dataset.a].turning || {}), [i.dataset.t]: v / 100 };
+    state.editedArms.add(i.dataset.a);
+  } else {
+    dm.arms[i.dataset.a][i.dataset.k] = Math.round(v);
+    state.editedArms.add(i.dataset.a);
+  }
+  if (state.demandQuery) scheduleDemandPost(); // manual demand stays local-only
 }
-const d = () => state.demand;
+
+// ---------- demand overrides -> backend (debounced) ----------
+let postTimer = null;
+let postSeq = 0;
+
+function scheduleDemandPost() {
+  clearTimeout(postTimer);
+  postTimer = setTimeout(() => { postTimer = null; postDemandOverrides(); }, 400);
+}
+
+const postDemandOverrides = guard(async () => {
+  const q = state.demandQuery;
+  if (!q || !state.editedArms.size) return;
+  const overrides = {};
+  for (const a of state.editedArms) {
+    const x = state.demand.arms[a];
+    if (!x) continue;
+    overrides[a] = {
+      vehPerHour: x.vehPerHour, turning: x.turning, mix: x.mix,
+      pedPerHour: x.pedPerHour, bikePerHour: x.bikePerHour,
+    };
+  }
+  const seq = ++postSeq;
+  const res = await api.postDemand({ ...q, overrides });
+  // drop stale answers, and answers that would clobber edits made while the request was in flight
+  if (seq !== postSeq || postTimer || state.demandQuery !== q) return;
+  state.demand = res;
+  refreshDemandInputs();
+});
 
 function syncDemandGlobals() {
   state.demand.durationSec = +$('duration').value || 300;
@@ -66,9 +138,16 @@ function syncDemandGlobals() {
 }
 
 const loadDemand = guard(async () => {
+  clearTimeout(postTimer); postTimer = null; postSeq++;
+  state.editedArms = new Set();
   const id = $('intersection').value;
-  if (!id) { state.demand = emptyDemand(); renderDemand(); return; }
-  state.demand = await api.getDemand(id, +$('hour').value, +$('duration').value, +$('seed').value, +$('scale').value);
+  if (!id) { state.demandQuery = null; state.demand = emptyDemand(); renderDemand(); return; }
+  const q = {
+    intersection: id, day: $('day').value, hour: +$('hour').value,
+    durationSec: +$('duration').value, seed: +$('seed').value, scale: +$('scale').value,
+  };
+  state.demand = await api.getDemand(q.intersection, q.hour, q.durationSec, q.seed, q.scale, q.day);
+  state.demandQuery = q;
   $('duration').value = state.demand.durationSec ?? $('duration').value;
   $('seed').value = state.demand.seed ?? $('seed').value;
   renderDemand();

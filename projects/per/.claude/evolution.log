@@ -2,3 +2,6 @@
 2026-10-22 10:07 SPAWN: metrics-calculation (need: delay/queue/throughput/stops/emissions from martin event logs)
 2026-10-22 10:07 SPAWN: design-comparison (need: compare designs under identical demand, flag user vs existing)
 2026-10-22 10:07 SPAWN: comparison-ui (need: tile at colony/per showing metrics and comparison)
+2026-10-22 10:46 MUTATE: metrics-calculation (added loopback-fetch upstream-call rule; lead review of PR #3 showed Host-header calls fail and are unsafe)
+2026-10-22 10:50 MUTATE: metrics-calculation, design-comparison, comparison-ui each got a callable subagent in .claude/agents (human asked for one agent per capability)
+2026-10-22 11:12 MUTATE: design-comparison (accept martin compare "results" key; found by live end-to-end test, not by contract)
