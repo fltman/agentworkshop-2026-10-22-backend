@@ -17,6 +17,7 @@
 <h1>Stockholm traffic data loader</h1>
 <p class="muted">Demand served at /t/backend/demand in the simulation engine's format. Contract: projects/backend/CONTRACT.md</p>
 <label>Intersection <select id="inter"></select></label>
+<label>Day <select id="day"><option value="weekday">Weekday</option><option value="saturday">Saturday</option><option value="sunday">Sunday</option></select></label>
 <label>Hour <input id="hour" type="range" min="0" max="23" value="8"> <span id="hourOut">08:00</span></label>
 <label>Scale <input id="scale" type="number" min="0" max="5" step="0.1" value="1" style="width:4rem"></label>
 <p class="muted" id="source"></p>
@@ -35,7 +36,7 @@ async function loadDemand() {
   const id = $('inter').value;
   const hour = $('hour').value;
   $('hourOut').textContent = String(hour).padStart(2, '0') + ':00';
-  const q = new URLSearchParams({ intersection: id, hour, scale: $('scale').value });
+  const q = new URLSearchParams({ intersection: id, day: $('day').value, hour, scale: $('scale').value });
   const r = await fetch('/t/backend/demand?' + q);
   const d = await r.json();
   $('json').textContent = JSON.stringify(d, null, 2);
@@ -74,6 +75,7 @@ async function loadIntersection() {
   }
   $('inter').onchange = loadIntersection;
   $('hour').oninput = loadDemand;
+  $('day').onchange = loadDemand;
   $('scale').onchange = loadDemand;
   await loadIntersection();
 })();

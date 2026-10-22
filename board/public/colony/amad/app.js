@@ -206,20 +206,15 @@ scene.onTick = (t) => { $('scrub').value = Math.floor(t); if (!scene.playing) $(
 // ---------- compare ----------
 const LOWER_BETTER = (k) => !/throughput/i.test(k);
 
-$('compare').addEventListener('click', guard(async () => {
-  readDesignEditor();
-  syncDemandGlobals();
-  const picks = [...$('compareList').querySelectorAll('input:checked')].map((i) => i.value);
-  if (picks.length < 2) throw new Error('Pick at least two designs to compare.');
+const compareDesigns = async (designs) => {
   $('compareOut').textContent = 'Running…';
   const entries = [];
-  for (const id of picks) {
-    const design = id === '__current' ? clone(state.design) : await api.getDesign(id);
+  for (const design of designs) {
     const res = await api.runSim(design, state.demand);
     const runId = res.runId || res.id;
     let metrics;
     try { metrics = await api.getMetrics(runId); } catch (e) { metrics = res.summary || {}; }
-    entries.push({ name: design.name || design.id, origin: design.origin || 'user', metrics: flatten(metrics) });
+    entries.push({ name: design.name || design.id, origin: design.origin || 'user', note: design.rationale, metrics: flatten(metrics) });
   }
   const keys = [...new Set(entries.flatMap((e) => Object.keys(e.metrics)))];
   const best = {};
@@ -232,7 +227,28 @@ $('compare').addEventListener('click', guard(async () => {
     const v = e.metrics[k];
     return `<td class="${v != null && v === best[k] ? 'best' : ''}">${v == null ? '' : fmt(v)}</td>`;
   }).join('')}</tr>`).join('');
-  $('compareOut').innerHTML = `<div class="msg">Identical demand, seed ${state.demand.seed}. Best per metric highlighted.</div><table>${head}${body}</table>`;
+  const notes = entries.filter((e) => e.note).map((e) => `<li><b>${e.name}</b>: ${e.note}</li>`).join('');
+  $('compareOut').innerHTML = `<div class="msg">Identical demand, seed ${state.demand.seed}. Best per metric highlighted.</div><table>${head}${body}</table>${notes ? `<ul class="msg">${notes}</ul>` : ''}`;
+};
+
+$('compare').addEventListener('click', guard(async () => {
+  readDesignEditor();
+  syncDemandGlobals();
+  const picks = [...$('compareList').querySelectorAll('input:checked')].map((i) => i.value);
+  if (picks.length < 2) throw new Error('Pick at least two designs to compare.');
+  const designs = [];
+  for (const id of picks) designs.push(id === '__current' ? clone(state.design) : await api.getDesign(id));
+  await compareDesigns(designs);
+}));
+
+$('suggest').addEventListener('click', guard(async () => {
+  readDesignEditor();
+  syncDemandGlobals();
+  $('compareOut').textContent = 'Asking for suggestions…';
+  const base = clone(state.design);
+  const variants = await api.suggestDesigns(base, state.demand);
+  if (!variants.length) throw new Error('No suggestions returned.');
+  await compareDesigns([base, ...variants]);
 }));
 
 // ---------- start ----------
