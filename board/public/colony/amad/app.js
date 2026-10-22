@@ -2,6 +2,7 @@ import * as api from './api.js';
 import { Scene, demoFrames, CLS_COLOR, PED_COLOR, SIG_COLOR, STOP_COLOR } from './canvas.js';
 import { TileMap } from './map.js';
 import { getArmBearings, withBearings } from './geo.js';
+import { JUNCTIONS, junctionOf } from './junctions.js';
 
 const $ = (id) => document.getElementById(id);
 const ARMS = ['N', 'E', 'S', 'W'];
@@ -723,6 +724,8 @@ $('zoomFit').addEventListener('click', () => { state.overview = false; scene.fit
 // ---------- map (OpenStreetMap background) ----------
 // Anchor: the selected intersection's lat/lon from backend, else the design's location from be-christian.
 function geoAnchor() {
+  const j = JUNCTIONS[junctionOf($('intersection').value, state.design)];
+  if (j) return [j.lat, j.lon];
   const it = state.intersections.find((x) => x.id === $('intersection').value);
   if (it && num(it.lat) != null && num(it.lon) != null) return [it.lat, it.lon];
   const loc = state.design?.location;
@@ -762,11 +765,11 @@ function applyView() {
 // ---------- real arm bearings (bridge until designs carry bearingDeg) ----------
 // The engine (martin >= 0.4) lays arms out along design.arms[X].bearingDeg; we inject the bearings we derive
 // from OSM into a copy of every design we send. Older engines ignore the field; the canvas then warps the frames.
-const simDesign = (d) => (d && state.geo.key === geoKey() ? withBearings(d, state.geo.bearings) : d);
+const simDesign = (d) => (d && state.geo.key === geoKey() ? withBearings(d, state.geo.bearings, state.geo.source === 'stored') : d);
 function geoKey() {
   const a = geoAnchor();
   const own = ARMS.map((id) => state.design?.arms?.[id]?.bearingDeg ?? '').join(',');
-  return a ? `${a[0]},${a[1]}|${own}` : (state.design?.location ? `${state.design.id}|${own}` : '');
+  return a ? `${a[0]},${a[1]}|${state.design?.id || ''}|${own}` : (state.design?.location ? `${state.design.id}|${own}` : '');
 }
 let geoSeq = 0;
 async function refreshBearings() {
@@ -776,7 +779,7 @@ async function refreshBearings() {
   state.geo = { key, bearings: {}, source: 'none', geometry: null, pending: !!key };
   scene.setBearings({}); scene.setOsmLines(null); renderAlign();
   if (!key || !state.design) { state.geo.pending = false; renderAlign(); return; }
-  const p = getArmBearings(state.design, geoAnchor());
+  const p = getArmBearings(state.design, geoAnchor(), junctionOf($('intersection').value, state.design));
   state.geoWait = p;
   const r = await p;
   if (seq !== geoSeq) return;   // a newer intersection/design was picked meanwhile
@@ -796,7 +799,7 @@ function renderAlign() {
   if (g.pending) { text = 'Aligning to OSM roads…'; cls = 'pending'; title = 'Fetching road centrelines from OpenStreetMap (can take ~30 s)'; }
   else if (g.source === 'none') { text = 'Approximate alignment'; cls = 'approx'; title = `Arms drawn at N/E/S/W: real road bearings unavailable (${g.error || 'no data'})`; }
   else if (mode === 'warp') { text = 'Aligned (client warp)'; cls = 'warp'; title = `Engine did not echo bearingDeg; frames warped onto the real bearings: ${arms}`; }
-  else { text = g.source === 'design' ? 'Aligned (design bearings)' : 'Aligned to OSM roads'; cls = 'ok'; title = `Arm bearings: ${arms || 'all at their labels'}${mode === 'engine' ? ' · laid out by the engine' : ''}`; }
+  else { text = g.source === 'design' ? 'Aligned (design bearings)' : g.source === 'stored' ? 'Aligned to OSM roads (stored)' : 'Aligned to OSM roads'; cls = 'ok'; title = `Arm bearings: ${arms || 'all at their labels'}${mode === 'engine' ? ' · laid out by the engine' : ''}`; }
   tag.hidden = false;
   tag.className = 'align-tag ' + cls;
   tag.textContent = text;
@@ -1168,7 +1171,7 @@ const init = guard(async () => {
   state.intersections = ints;
   $('intersection').innerHTML = '<option value="">Manual demand (no data)</option>' +
     ints.map((i) => `<option value="${esc(i.id)}">${esc(i.name || i.id)}${i.estimated ? ' · est.' : ''}</option>`).join('');
-  tmap.markers = ints.filter((i) => num(i.lat) != null && num(i.lon) != null).map((i) => ({ id: i.id, name: i.name || i.id, lat: i.lat, lon: i.lon }));
+  tmap.markers = ints.filter((i) => num(i.lat) != null && num(i.lon) != null).map((i) => ({ id: i.id, name: i.name || i.id, lat: JUNCTIONS[i.id]?.lat ?? i.lat, lon: JUNCTIONS[i.id]?.lon ?? i.lon }));
   await loadDesigns();
   if (ints.length) { $('intersection').value = ints[0].id; await loadDemand(); }
   // default: Map when coordinates are known, else schematic; start with an overview of all intersections

@@ -2,6 +2,7 @@
 // Bearings are compass degrees, clockwise from north, pointing AWAY from the centre (martin CONTRACT v0.4).
 // Source order: design.arms[X].bearingDeg (if any arm has it) > be-christian /osm road centrelines > none (labels).
 import * as api from './api.js';
+import { JUNCTIONS } from './junctions.js';
 
 export const ARMS = ['N', 'E', 'S', 'W'];
 export const NOMINAL = { N: 0, E: 90, S: 180, W: 270 };
@@ -140,12 +141,18 @@ export function sanitizeBearings(bearings, armIds) {
 }
 
 // Copy of the design with arms[X].bearingDeg injected (only for arms that differ from the label by >= 0.5 deg).
-export function withBearings(design, bearings) {
+// override: replace bearings already in the design (stored junction data is measured at the real centre).
+export function withBearings(design, bearings, override = false) {
   if (!design || !bearings || !Object.keys(bearings).length) return design;
   const d = JSON.parse(JSON.stringify(design));
-  for (const [id, b] of Object.entries(sanitizeBearings(bearings, armIdsOf(design)))) {
+  const ids = armIdsOf(design);
+  const clean = sanitizeBearings(bearings, ids);
+  for (const id of ids) {
     const a = armOf(d, id);
-    if (a && a.bearingDeg == null && Math.abs(diff(b, NOMINAL[id])) >= 0.5) a.bearingDeg = Math.round(b * 10) / 10;
+    if (!a || (a.bearingDeg != null && !override)) continue;
+    const b = clean[id];
+    if (b != null && Math.abs(diff(b, NOMINAL[id])) >= 0.5) a.bearingDeg = Math.round(b * 10) / 10;
+    else if (override) delete a.bearingDeg;
   }
   return d;
 }
@@ -173,8 +180,10 @@ function trimGeometry(geometry) {
  * anchor = [lat, lon] (the map anchor, so the OSM origin matches the drawn origin); else design.location / design id.
  * Never throws: any error (502 Overpass down, 422 too few roads, offline) gives source 'none' and no bearings.
  */
-export async function getArmBearings(design, anchor) {
+export async function getArmBearings(design, anchor, junctionId) {
   const ids = armIdsOf(design);
+  const stored = junctionId && JUNCTIONS[junctionId];
+  if (stored) return { bearings: sanitizeBearings(stored.bearings, ids), source: 'stored', geometry: null };
   const own = {};
   for (const id of ids) { const b = Number(armOf(design, id)?.bearingDeg); if (armOf(design, id)?.bearingDeg != null && Number.isFinite(b)) own[id] = b; }
   if (Object.keys(own).length) return { bearings: sanitizeBearings(own, ids), source: 'design', geometry: null };
