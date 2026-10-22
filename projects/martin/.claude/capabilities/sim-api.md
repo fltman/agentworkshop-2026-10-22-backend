@@ -3,8 +3,7 @@ name: sim-api
 type: capability
 domain: backend
 tools: Read, Write, Edit, Bash, WebFetch
-model: sonnet
-energy: 50
+energy: 70
 spawned: 2026-10-22
 can-merge-with: []
 ---

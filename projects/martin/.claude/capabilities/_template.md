@@ -3,7 +3,6 @@ name: example-capability
 type: capability
 domain: meta
 tools: Read, Grep, Glob
-model: haiku
 energy: 50
 spawned: 2025-01-15
 can-merge-with: []

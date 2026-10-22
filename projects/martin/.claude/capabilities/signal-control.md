@@ -3,8 +3,7 @@ name: signal-control
 type: capability
 domain: backend
 tools: Read, Write, Edit, Bash
-model: sonnet
-energy: 50
+energy: 80
 spawned: 2026-10-22
 can-merge-with: [traffic-microsim]
 ---
