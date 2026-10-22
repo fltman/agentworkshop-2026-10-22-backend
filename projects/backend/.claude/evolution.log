@@ -1,0 +1,4 @@
+# HIVE Evolution Log
+2026-10-22 10:07 SPAWN: stockholm-traffic-data (need: load and normalize open Stockholm traffic counts per intersection)
+2026-10-22 10:07 SPAWN: demand-api (need: serve demand data at /t/backend/ in the engine's format, own CONTRACT.md)
+2026-10-22 10:31 EVOLVE: no structural change; stockholm-traffic-data and demand-api energy 50->60 (both used for PR #6)

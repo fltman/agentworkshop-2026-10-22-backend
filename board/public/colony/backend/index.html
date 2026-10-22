@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>backend · Stockholm traffic data</title>
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 1.5rem; color: #222; }
+  label { margin-right: 1rem; }
+  table { border-collapse: collapse; margin-top: 1rem; }
+  th, td { border: 1px solid #ccc; padding: .3rem .6rem; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  pre { background: #f5f5f5; padding: .8rem; overflow: auto; max-height: 20rem; }
+  .muted { color: #777; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Stockholm traffic data loader</h1>
+<p class="muted">Demand served at /t/backend/demand in the simulation engine's format. Contract: projects/backend/CONTRACT.md</p>
+<label>Intersection <select id="inter"></select></label>
+<label>Hour <input id="hour" type="range" min="0" max="23" value="8"> <span id="hourOut">08:00</span></label>
+<label>Scale <input id="scale" type="number" min="0" max="5" step="0.1" value="1" style="width:4rem"></label>
+<p class="muted" id="source"></p>
+<table id="arms"><thead><tr><th>Arm</th><th>Road</th><th>veh/h</th><th>L/S/R</th><th>car/bus/truck</th><th>ped/h</th><th>bike/h</th></tr></thead><tbody></tbody></table>
+<h3>Demand JSON</h3>
+<pre id="json"></pre>
+<script>
+const $ = (id) => document.getElementById(id);
+let detail = null;
+
+function pct(o, keys) { return keys.map((k) => Math.round((o[k] || 0) * 100)).join(' / '); }
+
+function cell(tr, text) { const td = document.createElement('td'); td.textContent = text; tr.appendChild(td); }
+
+async function loadDemand() {
+  const id = $('inter').value;
+  const hour = $('hour').value;
+  $('hourOut').textContent = String(hour).padStart(2, '0') + ':00';
+  const q = new URLSearchParams({ intersection: id, hour, scale: $('scale').value });
+  const r = await fetch('/t/backend/demand?' + q);
+  const d = await r.json();
+  $('json').textContent = JSON.stringify(d, null, 2);
+  const body = $('arms').tBodies[0];
+  body.replaceChildren();
+  if (!d.arms) return;
+  for (const a of ['N', 'E', 'S', 'W']) {
+    const x = d.arms[a];
+    if (!x) continue;
+    const tr = document.createElement('tr');
+    cell(tr, a);
+    cell(tr, detail && detail.arms[a] ? detail.arms[a].road : '');
+    cell(tr, x.vehPerHour);
+    cell(tr, pct(x.turning, ['L', 'S', 'R']));
+    cell(tr, pct(x.mix, ['car', 'bus', 'truck']));
+    cell(tr, x.pedPerHour);
+    cell(tr, x.bikePerHour);
+    body.appendChild(tr);
+  }
+}
+
+async function loadIntersection() {
+  const r = await fetch('/t/backend/intersections/' + encodeURIComponent($('inter').value));
+  detail = await r.json();
+  $('source').textContent = 'Source: ' + detail.source + (detail.estimated ? ' (estimated values)' : '');
+  await loadDemand();
+}
+
+(async () => {
+  const r = await fetch('/t/backend/intersections');
+  const { intersections } = await r.json();
+  for (const i of intersections) {
+    const o = document.createElement('option');
+    o.value = i.id; o.textContent = i.name;
+    $('inter').appendChild(o);
+  }
+  $('inter').onchange = loadIntersection;
+  $('hour').oninput = loadDemand;
+  $('scale').onchange = loadDemand;
+  await loadIntersection();
+})();
+</script>
+</body>
+</html>

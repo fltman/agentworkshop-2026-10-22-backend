@@ -1,0 +1,33 @@
+* { box-sizing: border-box; }
+body { margin: 0; font: 13px/1.4 system-ui, sans-serif; background: #12171e; color: #dfe6ee; }
+header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: #0c1015; border-bottom: 1px solid #263140; }
+h1 { font-size: 16px; margin: 0; }
+h2 { font-size: 13px; margin: 14px 0 6px; color: #8fb8ff; text-transform: uppercase; letter-spacing: .05em; }
+main { display: grid; grid-template-columns: 290px minmax(420px, 1fr) 340px; gap: 12px; padding: 12px; }
+section { min-width: 0; }
+label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 4px 0; }
+input, select { background: #1c2430; color: inherit; border: 1px solid #33405166; border-radius: 4px; padding: 3px 6px; max-width: 150px; }
+input[type=number] { width: 80px; }
+button { background: #263447; color: inherit; border: 0; border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+button:hover { background: #31445c; }
+button.primary { background: #1f6feb; }
+.row, .controls { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.controls input[type=range] { flex: 1; max-width: none; }
+canvas { width: 100%; height: auto; border-radius: 6px; background: #1b2430; display: block; }
+.badge { padding: 1px 7px; border-radius: 9px; font-size: 11px; background: #33405166; }
+.badge.existing { background: #1f6feb55; }
+.badge.user { background: #2ea04355; }
+.msg { color: #a9b6c6; min-height: 18px; margin: 4px 0; }
+.msg.bad { color: #ff7b72; }
+#error { background: #5b1b1b; color: #ffd6d6; padding: 8px 14px; white-space: pre-wrap; }
+#modules span { margin-left: 10px; font-size: 12px; }
+#modules .ok::before { content: "● "; color: #2ecc71; }
+#modules .down::before { content: "● "; color: #e74c3c; }
+table { border-collapse: collapse; width: 100%; margin: 6px 0; }
+th, td { border-bottom: 1px solid #263140; padding: 3px 5px; text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+td.best { background: #2ea04333; font-weight: 600; }
+.armrow { display: grid; grid-template-columns: 24px repeat(6, 1fr); gap: 3px; align-items: center; margin: 2px 0; }
+.armrow input { width: 100%; max-width: none; padding: 2px 3px; }
+.armrow.head { color: #8a95a3; font-size: 11px; }
+@media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
