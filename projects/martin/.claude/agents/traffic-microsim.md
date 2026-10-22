@@ -16,7 +16,7 @@ Moves individual road users through an intersection, tick by tick.
 
 - Converting demand (vehicles/h per approach, turning %, vehicle mix, peds/bikes, duration) into seeded, reproducible arrivals so designs can be compared under identical traffic
 - Lane graph: approaches, lanes, connectors (turn paths) built from a design
-- Car-following (IDM), gap acceptance at yield points, simple lane choice per turning movement
+- Car-following (IDM), simple lane choice per turning movement (gap acceptance and right of way moved to junction-conflicts)
 - Vehicle classes (car, bus, truck, bike) with length, speed and emission factors
 - Per-tick state output and event log (arrive, stop, start, depart) for the metrics team
 
@@ -37,8 +37,9 @@ Watch your own patterns and propose to HIVE: SPAWN (repeated requests outside th
 
 ## Boundaries
 
-Does NOT handle: signal timing logic (signal-control), HTTP/contract (sim-api), rendering (other teams).
+Does NOT handle: right of way and conflict sets (junction-conflicts), signal timing logic (signal-control), HTTP/contract (sim-api), rendering (other teams).
 
 ## Evolution History
 
 - 2026-10-22: Spawned at awakening (team claimed simulation engine)
+- 2026-10-22 12:33: SPLIT, right-of-way logic moved to junction-conflicts (energy 95 -> 70)

@@ -5,3 +5,4 @@
 2026-10-22 10:46 MUTATE: metrics-calculation (added loopback-fetch upstream-call rule; lead review of PR #3 showed Host-header calls fail and are unsafe)
 2026-10-22 10:50 MUTATE: metrics-calculation, design-comparison, comparison-ui each got a callable subagent in .claude/agents (human asked for one agent per capability)
 2026-10-22 11:12 MUTATE: design-comparison (accept martin compare "results" key; found by live end-to-end test, not by contract)
+2026-10-22 12:33 SPAWN: real-data-calibration (need: GPKG real-flow extract and calibration came up twice, outside existing capabilities)

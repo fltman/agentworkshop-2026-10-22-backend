@@ -1,5 +1,5 @@
 {
-  "note": "Volumes estimated from Stockholm stad published annual average daily traffic (ADT) per street; turning shares, vehicle mix and pedestrian/bicycle peaks are assumptions. Every arm value is inbound traffic (arm = where traffic comes FROM). Saturday and Sunday use typical Stockholm weekend shares of weekday traffic.",
+  "note": "Arm volumes marked source \"measured\" come from Stockholm stad / NVDB open traffic flow maps (ADT all directions halved to inbound, heavy share as bus+truck), via /t/per/realflows. Arms marked \"estimated\", turning shares, pedestrian/bicycle peaks and day profiles are assumptions. Every arm value is inbound traffic (arm = where traffic comes FROM).",
   "days": {
     "weekday": {
       "volume": 1,
@@ -176,72 +176,100 @@
       "name": "Sveavägen / Odengatan",
       "lat": 59.344,
       "lon": 18.0556,
-      "source": "Stockholm stad traffic counts (ADT, estimated)",
-      "estimated": true,
+      "source": "Stockholm stad / NVDB open flow maps via /t/per/realflows (4 of 4 arms measured)",
+      "estimated": false,
       "arms": {
         "N": {
           "road": "Sveavägen",
-          "adtIn": 9000,
+          "adtIn": 10850,
           "turning": {
             "L": 0.15,
             "S": 0.7,
             "R": 0.15
           },
           "mix": {
-            "car": 0.84,
-            "bus": 0.06,
-            "truck": 0.1
+            "car": 0.92,
+            "bus": 0.03,
+            "truck": 0.05
           },
           "pedPeak": 900,
-          "bikePeak": 350
+          "bikePeak": 350,
+          "source": "measured",
+          "measured": {
+            "street": "Sveavägen",
+            "distM": 4,
+            "adtAllDirections": 21700,
+            "heavyShare": 0.08
+          }
         },
         "S": {
           "road": "Sveavägen",
-          "adtIn": 9500,
+          "adtIn": 10850,
           "turning": {
             "L": 0.15,
             "S": 0.7,
             "R": 0.15
           },
           "mix": {
-            "car": 0.84,
-            "bus": 0.06,
-            "truck": 0.1
+            "car": 0.92,
+            "bus": 0.03,
+            "truck": 0.05
           },
           "pedPeak": 1000,
-          "bikePeak": 380
+          "bikePeak": 380,
+          "source": "measured",
+          "measured": {
+            "street": "Sveavägen",
+            "distM": 4,
+            "adtAllDirections": 21700,
+            "heavyShare": 0.08
+          }
         },
         "E": {
           "road": "Odengatan",
-          "adtIn": 6000,
+          "adtIn": 7625,
           "turning": {
             "L": 0.2,
             "S": 0.6,
             "R": 0.2
           },
           "mix": {
-            "car": 0.82,
-            "bus": 0.09,
-            "truck": 0.09
+            "car": 0.9,
+            "bus": 0.05,
+            "truck": 0.05
           },
           "pedPeak": 800,
-          "bikePeak": 250
+          "bikePeak": 250,
+          "source": "measured",
+          "measured": {
+            "street": "Odengatan",
+            "distM": 4,
+            "adtAllDirections": 15250,
+            "heavyShare": 0.1
+          }
         },
         "W": {
           "road": "Odengatan",
-          "adtIn": 6500,
+          "adtIn": 7625,
           "turning": {
             "L": 0.2,
             "S": 0.6,
             "R": 0.2
           },
           "mix": {
-            "car": 0.82,
-            "bus": 0.09,
-            "truck": 0.09
+            "car": 0.9,
+            "bus": 0.05,
+            "truck": 0.05
           },
           "pedPeak": 850,
-          "bikePeak": 260
+          "bikePeak": 260,
+          "source": "measured",
+          "measured": {
+            "street": "Odengatan",
+            "distM": 4,
+            "adtAllDirections": 15250,
+            "heavyShare": 0.1
+          }
         }
       }
     },
@@ -250,72 +278,100 @@
       "name": "Valhallavägen / Birger Jarlsgatan",
       "lat": 59.3501,
       "lon": 18.0591,
-      "source": "Stockholm stad traffic counts (ADT, estimated)",
-      "estimated": true,
+      "source": "Stockholm stad / NVDB open flow maps via /t/per/realflows (4 of 4 arms measured)",
+      "estimated": false,
       "arms": {
         "N": {
           "road": "Birger Jarlsgatan",
-          "adtIn": 7000,
+          "adtIn": 7568,
           "turning": {
             "L": 0.2,
             "S": 0.6,
             "R": 0.2
           },
           "mix": {
-            "car": 0.86,
-            "bus": 0.04,
-            "truck": 0.1
+            "car": 0.92,
+            "bus": 0.023,
+            "truck": 0.057
           },
           "pedPeak": 400,
-          "bikePeak": 300
+          "bikePeak": 300,
+          "source": "measured",
+          "measured": {
+            "street": "Birger Jarlsgatan",
+            "distM": 50,
+            "adtAllDirections": 15135,
+            "heavyShare": 0.08
+          }
         },
         "S": {
           "road": "Birger Jarlsgatan",
-          "adtIn": 7500,
+          "adtIn": 7568,
           "turning": {
             "L": 0.2,
             "S": 0.6,
             "R": 0.2
           },
           "mix": {
-            "car": 0.86,
-            "bus": 0.04,
-            "truck": 0.1
+            "car": 0.92,
+            "bus": 0.023,
+            "truck": 0.057
           },
           "pedPeak": 450,
-          "bikePeak": 320
+          "bikePeak": 320,
+          "source": "measured",
+          "measured": {
+            "street": "Birger Jarlsgatan",
+            "distM": 50,
+            "adtAllDirections": 15135,
+            "heavyShare": 0.08
+          }
         },
         "E": {
           "road": "Valhallavägen",
-          "adtIn": 15000,
+          "adtIn": 12200,
           "turning": {
             "L": 0.12,
             "S": 0.75,
             "R": 0.13
           },
           "mix": {
-            "car": 0.85,
-            "bus": 0.04,
-            "truck": 0.11
+            "car": 0.92,
+            "bus": 0.021,
+            "truck": 0.059
           },
           "pedPeak": 300,
-          "bikePeak": 200
+          "bikePeak": 200,
+          "source": "measured",
+          "measured": {
+            "street": "Valhallavägen",
+            "distM": 28,
+            "adtAllDirections": 24400,
+            "heavyShare": 0.08
+          }
         },
         "W": {
           "road": "Valhallavägen",
-          "adtIn": 15500,
+          "adtIn": 12200,
           "turning": {
             "L": 0.12,
             "S": 0.75,
             "R": 0.13
           },
           "mix": {
-            "car": 0.85,
-            "bus": 0.04,
-            "truck": 0.11
+            "car": 0.92,
+            "bus": 0.021,
+            "truck": 0.059
           },
           "pedPeak": 300,
-          "bikePeak": 200
+          "bikePeak": 200,
+          "source": "measured",
+          "measured": {
+            "street": "Valhallavägen",
+            "distM": 28,
+            "adtAllDirections": 24400,
+            "heavyShare": 0.08
+          }
         }
       }
     },
@@ -324,72 +380,100 @@
       "name": "Hornsgatan / Långholmsgatan (Hornstull)",
       "lat": 59.3157,
       "lon": 18.0339,
-      "source": "Stockholm stad traffic counts (ADT, estimated)",
-      "estimated": true,
+      "source": "Stockholm stad / NVDB open flow maps via /t/per/realflows (4 of 4 arms measured)",
+      "estimated": false,
       "arms": {
         "N": {
           "road": "Långholmsgatan",
-          "adtIn": 17000,
+          "adtIn": 14000,
           "turning": {
             "L": 0.15,
             "S": 0.65,
             "R": 0.2
           },
           "mix": {
-            "car": 0.83,
-            "bus": 0.03,
-            "truck": 0.14
+            "car": 0.9,
+            "bus": 0.018,
+            "truck": 0.082
           },
           "pedPeak": 500,
-          "bikePeak": 450
+          "bikePeak": 450,
+          "source": "measured",
+          "measured": {
+            "street": "Långholmsgatan",
+            "distM": 7,
+            "adtAllDirections": 28000,
+            "heavyShare": 0.1
+          }
         },
         "S": {
           "road": "Långholmsgatan",
-          "adtIn": 17500,
+          "adtIn": 15500,
           "turning": {
             "L": 0.2,
             "S": 0.65,
             "R": 0.15
           },
           "mix": {
-            "car": 0.83,
-            "bus": 0.03,
-            "truck": 0.14
+            "car": 0.88,
+            "bus": 0.021,
+            "truck": 0.099
           },
           "pedPeak": 550,
-          "bikePeak": 400
+          "bikePeak": 400,
+          "source": "measured",
+          "measured": {
+            "street": "Hornstull",
+            "distM": 47,
+            "adtAllDirections": 31000,
+            "heavyShare": 0.12
+          }
         },
         "E": {
           "road": "Hornsgatan",
-          "adtIn": 7500,
+          "adtIn": 11400,
           "turning": {
             "L": 0.25,
             "S": 0.55,
             "R": 0.2
           },
           "mix": {
-            "car": 0.8,
-            "bus": 0.1,
-            "truck": 0.1
+            "car": 0.92,
+            "bus": 0.04,
+            "truck": 0.04
           },
           "pedPeak": 1100,
-          "bikePeak": 350
+          "bikePeak": 350,
+          "source": "measured",
+          "measured": {
+            "street": "Hornsgatan",
+            "distM": 51,
+            "adtAllDirections": 22800,
+            "heavyShare": 0.08
+          }
         },
         "W": {
           "road": "Hornsgatan",
-          "adtIn": 6000,
+          "adtIn": 2500,
           "turning": {
             "L": 0.2,
             "S": 0.55,
             "R": 0.25
           },
           "mix": {
-            "car": 0.8,
-            "bus": 0.1,
-            "truck": 0.1
+            "car": 0.93,
+            "bus": 0.035,
+            "truck": 0.035
           },
           "pedPeak": 900,
-          "bikePeak": 300
+          "bikePeak": 300,
+          "source": "measured",
+          "measured": {
+            "street": "Hornsgatan",
+            "distM": 47,
+            "adtAllDirections": 5000,
+            "heavyShare": 0.07
+          }
         }
       }
     },
@@ -398,24 +482,31 @@
       "name": "Fridhemsplan",
       "lat": 59.3334,
       "lon": 18.0298,
-      "source": "Stockholm stad traffic counts (ADT, estimated)",
+      "source": "Stockholm stad / NVDB open flow maps via /t/per/realflows (3 of 4 arms measured)",
       "estimated": true,
       "arms": {
         "N": {
           "road": "Fridhemsgatan",
-          "adtIn": 6000,
+          "adtIn": 1025,
           "turning": {
             "L": 0.2,
             "S": 0.55,
             "R": 0.25
           },
           "mix": {
-            "car": 0.84,
-            "bus": 0.07,
-            "truck": 0.09
+            "car": 0.88,
+            "bus": 0.053,
+            "truck": 0.067
           },
           "pedPeak": 700,
-          "bikePeak": 300
+          "bikePeak": 300,
+          "source": "measured",
+          "measured": {
+            "street": "Fridhemsgatan",
+            "distM": 17,
+            "adtAllDirections": 2050,
+            "heavyShare": 0.12
+          }
         },
         "E": {
           "road": "Fleminggatan",
@@ -431,39 +522,54 @@
             "truck": 0.09
           },
           "pedPeak": 900,
-          "bikePeak": 400
+          "bikePeak": 400,
+          "source": "estimated"
         },
         "S": {
           "road": "Fridhemsgatan",
-          "adtIn": 5500,
+          "adtIn": 1025,
           "turning": {
             "L": 0.25,
             "S": 0.55,
             "R": 0.2
           },
           "mix": {
-            "car": 0.84,
-            "bus": 0.07,
-            "truck": 0.09
+            "car": 0.88,
+            "bus": 0.053,
+            "truck": 0.067
           },
           "pedPeak": 650,
-          "bikePeak": 280
+          "bikePeak": 280,
+          "source": "measured",
+          "measured": {
+            "street": "Fridhemsgatan",
+            "distM": 17,
+            "adtAllDirections": 2050,
+            "heavyShare": 0.12
+          }
         },
         "W": {
           "road": "Drottningholmsvägen",
-          "adtIn": 12000,
+          "adtIn": 13000,
           "turning": {
             "L": 0.15,
             "S": 0.65,
             "R": 0.2
           },
           "mix": {
-            "car": 0.83,
-            "bus": 0.08,
-            "truck": 0.09
+            "car": 0.92,
+            "bus": 0.038,
+            "truck": 0.042
           },
           "pedPeak": 600,
-          "bikePeak": 450
+          "bikePeak": 450,
+          "source": "measured",
+          "measured": {
+            "street": "Drottningholmsvägen",
+            "distM": 138,
+            "adtAllDirections": 26000,
+            "heavyShare": 0.08
+          }
         }
       }
     },
