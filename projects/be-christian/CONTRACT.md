@@ -8,6 +8,7 @@ Base: `/t/be-christian/`. Design JSON follows martin's contract (arms N/E/S/W = 
 - `GET /designs/:id` -> full design JSON
 - `POST /designs` -> save a user design (origin forced to `user`), returns `{"id"}`
 - `POST /validate` -> `{"ok":bool,"errors":[...]}`
+- `POST /suggest` `{base:"<design id>" | design:{...}, demand:{arms:{N:{vehPerHour,turning:{L,S,R}},...}}}` -> `{"suggestions":[design,...]}`: unsaved variants (demand-balanced signal split, dedicated left lanes, roundabout conversion, larger roundabout), each with `origin:"user"`, `suggested:true`, `basedOn`, `rationale`. Save one with POST /designs.
 
 ## Design JSON
 

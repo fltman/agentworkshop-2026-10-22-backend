@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>amad: Stockholm Intersection Simulator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Stockholm Intersection Simulator</h1>
+  <div id="modules"></div>
+</header>
+<div id="error" hidden></div>
+<main>
+  <section id="left">
+    <h2>1. Traffic</h2>
+    <label>Intersection <select id="intersection"></select></label>
+    <label>Hour <input id="hour" type="number" min="0" max="23" value="8"></label>
+    <label>Duration (s) <input id="duration" type="number" min="60" max="3600" value="300"></label>
+    <label>Seed <input id="seed" type="number" value="42"></label>
+    <label>Scale <input id="scale" type="number" step="0.1" min="0.1" value="1"></label>
+    <button id="loadDemand">Load demand</button>
+    <div id="demand"></div>
+
+    <h2>2. Design</h2>
+    <label>Design <select id="design"></select> <span id="origin" class="badge"></span></label>
+    <label>Type
+      <select id="dtype"><option>signal</option><option>roundabout</option><option>priority</option></select>
+    </label>
+    <label>Roundabout radius (m) <input id="radius" type="number" min="8" max="50" value="15"></label>
+    <div id="lanes"></div>
+    <label>Banned movements <input id="banned" placeholder="e.g. N:L, E:L"></label>
+    <div class="row">
+      <button id="validate">Validate</button>
+      <button id="save">Save as my design</button>
+    </div>
+    <div id="dmsg" class="msg"></div>
+  </section>
+
+  <section id="center">
+    <canvas id="cv" width="760" height="760"></canvas>
+    <div class="controls">
+      <button id="run" class="primary">Run simulation</button>
+      <button id="play">Play</button>
+      <input id="scrub" type="range" min="0" max="0" step="1" value="0">
+      <select id="speed"><option value="1">1x</option><option value="2">2x</option><option value="5" selected>5x</option><option value="10">10x</option></select>
+    </div>
+    <div id="status" class="msg"></div>
+  </section>
+
+  <section id="right">
+    <h2>Metrics</h2>
+    <div id="metrics" class="msg">Run a simulation.</div>
+    <h2>Compare designs</h2>
+    <div id="compareList"></div>
+    <button id="compare">Compare under identical demand</button>
+    <div id="compareOut"></div>
+  </section>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

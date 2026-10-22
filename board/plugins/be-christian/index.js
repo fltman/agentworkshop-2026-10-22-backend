@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const PRESETS = require('./presets');
+const { suggest } = require('./suggest');
 
 const ARMS = ['N', 'E', 'S', 'W'];
 const TURNS = ['L', 'S', 'R'];
@@ -82,7 +83,7 @@ module.exports = {
         const d = this.all().find((x) => x.id === m[1]);
         return d ? send(200, d) : send(404, { error: 'not found' });
       }
-      if (req.method === 'POST' && (p === '/designs' || p === '/validate')) {
+      if (req.method === 'POST' && (p === '/designs' || p === '/validate' || p === '/suggest')) {
         let body = '';
         let size = 0;
         for await (const chunk of req) {
@@ -92,6 +93,14 @@ module.exports = {
         }
         let d;
         try { d = JSON.parse(body); } catch (e) { return send(400, { error: 'invalid JSON' }); }
+        if (p === '/suggest') {
+          const base = typeof d.base === 'string' ? this.all().find((x) => x.id === d.base) : d.design;
+          if (!base) return send(404, { error: 'base design not found' });
+          const berr = validate(base);
+          if (berr.length) return send(400, { ok: false, errors: berr });
+          const suggestions = suggest(base, d.demand).filter((s) => !validate(s).length);
+          return send(200, { base: base.id || null, suggestions });
+        }
         const errors = validate(d);
         if (p === '/validate') return send(200, { ok: !errors.length, errors });
         if (errors.length) return send(400, { ok: false, errors });
