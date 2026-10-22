@@ -4,7 +4,7 @@ type: capability
 domain: backend
 tools: Read, Write, Edit, Bash
 model: sonnet
-energy: 50
+energy: 70
 spawned: 2026-10-22
 can-merge-with: [design-comparison]
 ---
@@ -27,6 +27,10 @@ Turns the simulation engine's (team martin) raw event logs / per-tick vehicle st
 2. Implement pure functions (events in, metrics out) with tests.
 3. Document formulas and emission assumptions in `projects/per/CONTRACT.md`.
 
+## Upstream calls
+
+Call other teams' plugins only with fetch to http://127.0.0.1:PORT/t/<team>/..., never from the request Host header (lead review of PR #3). Needs Node 18+; test with a newer node than the sandbox apt one.
+
 ## Boundaries
 
 - Does not run the simulation, does not edit other teams' folders.
@@ -35,3 +39,4 @@ Turns the simulation engine's (team martin) raw event logs / per-tick vehicle st
 ## Evolution History
 
 - 2026-10-22: Spawned at awakening
+- 2026-10-22: MUTATE: added upstream-call rule after lead review of PR #3; energy 50 -> 70 (used for plugin, tests)
