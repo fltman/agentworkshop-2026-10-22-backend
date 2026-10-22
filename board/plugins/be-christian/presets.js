@@ -15,16 +15,22 @@ module.exports = [
     phases: twoPhase(35, 25), radius: null, bannedMovements: [],
   },
   {
-    id: 'odenplan', name: 'Odenplan (simplified)', origin: 'existing', type: 'signal',
-    location: { lat: 59.3428, lon: 18.0498 },
+    id: 'sveavagen-odengatan', name: 'Sveavagen / Odengatan (simplified)', origin: 'existing', type: 'signal',
+    location: { lat: 59.3436, lon: 18.0496 },
     arms: fourArm([lane('L', 'S', 'R')], [lane('L'), lane('S', 'R')], [lane('L', 'S', 'R')], [lane('L'), lane('S', 'R')]),
     phases: twoPhase(30, 30), radius: null, bannedMovements: [],
   },
   {
-    id: 'hornstull', name: 'Hornstull (simplified)', origin: 'existing', type: 'signal',
-    location: { lat: 59.3158, lon: 18.0344 },
+    id: 'hornsgatan-langholmsgatan', name: 'Hornsgatan / Langholmsgatan (simplified)', origin: 'existing', type: 'signal',
+    location: { lat: 59.3171, lon: 18.0333 },
     arms: fourArm([lane('L', 'S'), lane('S', 'R')], [lane('L', 'S', 'R')], [lane('L', 'S'), lane('S', 'R')], [lane('L', 'S', 'R')]),
     phases: twoPhase(40, 20), radius: null, bannedMovements: ['E:L'],
+  },
+  {
+    id: 'valhallavagen-birgerjarlsgatan', name: 'Valhallavagen / Birger Jarlsgatan (simplified)', origin: 'existing', type: 'signal',
+    location: { lat: 59.3369, lon: 18.0775 },
+    arms: fourArm([lane('L'), lane('S', 'R')], [lane('L'), lane('S'), lane('S', 'R')], [lane('L', 'S'), lane('R')], [lane('L'), lane('S'), lane('S', 'R')]),
+    phases: twoPhase(40, 25), radius: null, bannedMovements: [],
   },
   {
     id: 'roundabout-medium', name: 'Medium roundabout (generic)', origin: 'existing', type: 'roundabout',
