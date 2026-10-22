@@ -1,5 +1,4 @@
 'use strict';
-const http = require('http');
 const { computeMetrics, compareRuns } = require('./metrics');
 
 const cache = new Map(); // runId -> metrics
@@ -23,37 +22,27 @@ function readBody(req) {
   });
 }
 
-// Calls another team's plugin on the same server.
-function call(req, method, path, body) {
-  return new Promise((resolve, reject) => {
-    const [host, port] = String(req.headers.host || 'localhost').split(':');
-    const payload = body ? JSON.stringify(body) : null;
-    const headers = payload
-      ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
-      : {};
-    const r = http.request({ host, port: port || 80, method, path, headers, timeout: 30000 }, (resp) => {
-      let d = '';
-      resp.on('data', (c) => (d += c));
-      resp.on('end', () => {
-        if (resp.statusCode >= 400) return reject(new Error('upstream ' + resp.statusCode + ' from ' + path));
-        try { resolve(JSON.parse(d)); } catch (e) { reject(new Error('upstream returned non-JSON from ' + path)); }
-      });
-    });
-    r.on('timeout', () => r.destroy(new Error('upstream timeout')));
-    r.on('error', reject);
-    if (payload) r.write(payload);
-    r.end();
-  });
+// Calls another team's plugin on this server, always via loopback (never from request headers).
+async function call(method, path, body) {
+  const base = 'http://127.0.0.1:' + (process.env.PORT || 8180);
+  const opts = { method, headers: {}, signal: AbortSignal.timeout(30000) };
+  if (body) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const resp = await fetch(base + path, opts);
+  if (!resp.ok) throw new Error('upstream ' + resp.status + ' from ' + path);
+  try { return await resp.json(); } catch (e) { throw new Error('upstream returned non-JSON from ' + path); }
 }
 
-async function metricsFor(req, runId) {
+async function metricsFor(runId) {
   if (cache.has(runId)) return cache.get(runId);
   const id = encodeURIComponent(runId);
-  const ev = await call(req, 'GET', '/t/martin/runs/' + id + '/events');
+  const ev = await call('GET', '/t/martin/runs/' + id + '/events');
   let frames = [];
-  try { frames = (await call(req, 'GET', '/t/martin/runs/' + id + '/frames')).frames || []; } catch (e) { /* queues optional */ }
+  try { frames = (await call('GET', '/t/martin/runs/' + id + '/frames')).frames || []; } catch (e) { /* queues optional */ }
   let meta = {};
-  try { meta = await call(req, 'GET', '/t/martin/runs/' + id); } catch (e) { /* optional */ }
+  try { meta = await call('GET', '/t/martin/runs/' + id); } catch (e) { /* optional */ }
   const durationSec = meta.durationSec || (meta.demand && meta.demand.durationSec);
   const out = Object.assign(
     { runId, design: meta.design || null, demand: meta.demand || null },
@@ -74,14 +63,14 @@ module.exports = {
       if (req.method === 'POST' && path === '/metrics') {
         const { runId } = await readBody(req);
         if (!runId) { sendJson(res, 400, { error: 'runId required' }); return true; }
-        sendJson(res, 200, await metricsFor(req, String(runId)));
+        sendJson(res, 200, await metricsFor(String(runId)));
         return true;
       }
       if (req.method === 'POST' && path === '/compare') {
         const body = await readBody(req);
         let runIds = body.runIds;
         if (!runIds && body.designs && body.demand) {
-          const r = await call(req, 'POST', '/t/martin/compare', { designs: body.designs, demand: body.demand });
+          const r = await call('POST', '/t/martin/compare', { designs: body.designs, demand: body.demand });
           runIds = (r.runs || []).map((x) => x.runId || x.id);
         }
         if (!Array.isArray(runIds) || runIds.length < 2) {
@@ -89,7 +78,7 @@ module.exports = {
           return true;
         }
         const runs = [];
-        for (const id of runIds) runs.push(await metricsFor(req, String(id)));
+        for (const id of runIds) runs.push(await metricsFor(String(id)));
         const base = JSON.stringify(runs[0].demand);
         if (runs.some((r) => JSON.stringify(r.demand) !== base)) {
           sendJson(res, 400, { error: 'runs differ in demand or seed; not comparable' });
