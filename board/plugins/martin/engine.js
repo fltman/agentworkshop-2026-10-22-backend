@@ -3,7 +3,7 @@
 // Pure, deterministic microsimulation: design + demand + seed -> summary, frames, events.
 // No I/O here; index.js wraps it in HTTP.
 
-const VERSION = '0.5.0';
+const VERSION = '0.5.1';
 const ARMS = ['N', 'E', 'S', 'W'];
 const TURNS = ['L', 'S', 'R'];
 const TURN_RANK = { S: 3, R: 2, L: 1 };
@@ -860,6 +860,31 @@ function simulate(rawDesign, rawDemand, options = {}) {
         if (!best || w.s < best.s) best = w;
       }
       if (best) leader.set(head, { gap: best.s - best.cls.len - head.s, v: best.v });
+    }
+
+    // Inside a non-roundabout box vehicles have no track: follow the nearest vehicle ahead on the same path or
+    // heading for the same exit lane (inside the box or already on it), so queues in the box keep their spacing.
+    if (!isRb) {
+      const boxed = vehicles.filter((v) => inBox(v) && !v.path.isBike);
+      for (const v of boxed) {
+        const p = v.path, toExit = p.sExit - v.s;
+        let best = null, bestGap = Infinity;
+        for (const w of boxed) {
+          if (w === v) continue;
+          let gap = null;
+          if (w.path.key === p.key) { if (w.s > v.s) gap = w.s - w.cls.len - v.s; }
+          else if (w.path.outKey === p.outKey) { const wt = w.path.sExit - w.s; if (wt < toExit) gap = toExit - wt - w.cls.len; }
+          if (gap !== null && gap < bestGap) { bestGap = gap; best = w; }
+        }
+        for (const w of tracks.get(p.outKey) || []) {
+          const gap = toExit + (w.s - w.path.sExit) - w.cls.len;
+          if (gap < bestGap) { bestGap = gap; best = w; }
+        }
+        if (best && bestGap < 60) {
+          const cur = leader.get(v);
+          if (!cur || bestGap < cur.gap) leader.set(v, { gap: bestGap, v: best.v });
+        }
+      }
     }
 
     // 5. Acceleration.
