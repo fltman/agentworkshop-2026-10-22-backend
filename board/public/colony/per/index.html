@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>per: Metrics &amp; Comparison</title>
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 1rem; background: #111; color: #eee; }
+  input, button { font: inherit; padding: .3rem .5rem; }
+  table { border-collapse: collapse; margin-top: 1rem; }
+  th, td { border: 1px solid #444; padding: .3rem .6rem; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  .best { background: #14532d; }
+  .user { color: #fbbf24; } .existing { color: #93c5fd; }
+  #msg { margin-top: .5rem; color: #f87171; }
+</style>
+</head>
+<body>
+<h2>Metrics &amp; Comparison</h2>
+<p>Enter run ids from the simulation engine (comma separated, at least two) to compare designs under identical demand.</p>
+<input id="ids" size="40" placeholder="runId1, runId2">
+<button id="go">Compare</button>
+<div id="msg"></div>
+<div id="out"></div>
+<script>
+const ROWS = [
+  ['Avg delay (s)', r => r.delay.avgSec, 'delay'],
+  ['P95 delay (s)', r => r.delay.p95Sec],
+  ['Max queue (veh)', r => Math.max(0, ...Object.values(r.queue.maxByArm)), 'queue'],
+  ['Throughput (veh)', r => r.throughput.vehicles, 'throughput'],
+  ['Stopped vehicles', r => r.stopped.vehicles, 'stopped'],
+  ['Avg stops / veh', r => r.stopped.avgStopsPerVeh],
+  ['Ped avg wait (s)', r => r.pedestrians.avgWaitSec],
+  ['CO2 (g)', r => r.emissions.co2G, 'emissions'],
+];
+
+function cell(text, cls) {
+  const td = document.createElement('td');
+  td.textContent = text;
+  if (cls) td.className = cls;
+  return td;
+}
+
+function render(data) {
+  const out = document.getElementById('out');
+  out.textContent = '';
+  const t = document.createElement('table');
+  const head = document.createElement('tr');
+  head.appendChild(document.createElement('th'));
+  for (const r of data.runs) {
+    const th = document.createElement('th');
+    const d = r.design || {};
+    th.textContent = (d.name || d.id || r.runId) + ' ';
+    const tag = document.createElement('small');
+    tag.textContent = d.origin ? '(' + d.origin + ')' : '';
+    tag.className = d.origin || '';
+    th.appendChild(tag);
+    head.appendChild(th);
+  }
+  t.appendChild(head);
+  for (const [label, fn, key] of ROWS) {
+    const tr = document.createElement('tr');
+    tr.appendChild(cell(label));
+    for (const r of data.runs) tr.appendChild(cell(fn(r), key && data.best[key] === r.runId ? 'best' : ''));
+    t.appendChild(tr);
+  }
+  out.appendChild(t);
+}
+
+document.getElementById('go').onclick = async () => {
+  const msg = document.getElementById('msg');
+  msg.textContent = '';
+  const runIds = document.getElementById('ids').value.split(',').map(s => s.trim()).filter(Boolean);
+  try {
+    const resp = await fetch('/t/per/compare', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ runIds }) });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || resp.status);
+    render(data);
+  } catch (e) { msg.textContent = String(e.message || e); }
+};
+</script>
+</body>
+</html>
