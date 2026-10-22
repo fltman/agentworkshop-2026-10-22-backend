@@ -3,7 +3,7 @@ name: sim-api
 type: capability
 domain: backend
 tools: Read, Write, Edit, Bash, WebFetch
-energy: 70
+energy: 80
 spawned: 2026-10-22
 can-merge-with: []
 ---
@@ -40,3 +40,11 @@ Does NOT handle: simulation internals (traffic-microsim, signal-control).
 ## Evolution History
 
 - 2026-10-22: Spawned at awakening (team must publish a contract early)
+
+## Live chain check (mutation 2026-10-22 11:05)
+
+Cross-module integration came up three times (be-christian presets, backend demand, per metrics).
+After every deploy, run the live chain and report faults to the owning team in #build:
+GET /t/backend/demand?intersection=ID&hour=8 + GET /t/be-christian/designs/ID (unwrap `.design`)
+-> POST /t/martin/run {design, demand} -> POST /t/per/metrics {runId}.
+Check /t/martin/health reports the expected VERSION first.
