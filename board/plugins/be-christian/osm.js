@@ -61,7 +61,8 @@ function buildDesign(lat, lon, elements) {
       const oneway = w.tags && w.tags.oneway;
       if (oneway === 'yes' && inbound === 'backward') continue;
       if (oneway === '-1' && inbound === 'forward') continue;
-      candidates.push({ arm: cardinal(bearing(pts[j])), lanes: lanesFor(w.tags || {}, inbound), name: (w.tags && w.tags.name) || null, hw: w.tags && w.tags.highway });
+      const brg = bearing(pts[j]);
+      candidates.push({ bearing: brg, arm: cardinal(brg), lanes: lanesFor(w.tags || {}, inbound), name: (w.tags && w.tags.name) || null, hw: w.tags && w.tags.highway });
     }
   }
 
@@ -93,8 +94,15 @@ function buildDesign(lat, lon, elements) {
     points: w.geometry.map((g) => { const p = toXY(lat, lon, g); return [Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10]; }),
   }));
   for (const a of names) {
-    design.arms[a] = { inLanes: laneTurns(arms[a].lanes) };
+    design.arms[a] = { inLanes: laneTurns(arms[a].lanes), bearingDeg: Math.round(arms[a].bearing) % 360 };
     design.osm.roads[a] = { name: arms[a].name, highway: arms[a].hw, lanes: arms[a].lanes };
+  }
+  const angDiff = (x, y) => { const d = Math.abs(x - y) % 360; return d > 180 ? 360 - d : d; };
+  for (const a of names) {
+    if (names.some((b) => b !== a && design.arms[b].bearingDeg !== undefined && design.arms[a].bearingDeg !== undefined && angDiff(design.arms[a].bearingDeg, design.arms[b].bearingDeg) < 30)) {
+      for (const k of names) delete design.arms[k].bearingDeg;
+      break;
+    }
   }
   if (design.type === 'signal') {
     const group = (set) => names.filter((a) => set.includes(a)).flatMap((a) => design.arms[a].inLanes.flatMap((l) => l.turns.map((t) => a + ':' + t)));
