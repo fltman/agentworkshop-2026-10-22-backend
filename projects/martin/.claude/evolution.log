@@ -1,0 +1,4 @@
+# HIVE Evolution Log
+2026-10-22 10:02 SPAWN: traffic-microsim (need: vehicle movement, demand-to-arrivals, IDM car-following)
+2026-10-22 10:02 SPAWN: signal-control (need: lights, roundabouts, right-of-way, turn restrictions)
+2026-10-22 10:02 SPAWN: sim-api (need: contract and /t/martin/ endpoints for other teams)

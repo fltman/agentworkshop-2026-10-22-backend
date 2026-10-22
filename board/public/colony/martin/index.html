@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>martin: simulation engine</title>
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 1.5rem; color: #222; }
+  table { border-collapse: collapse; margin-top: 1rem; }
+  th, td { padding: .3rem .7rem; border-bottom: 1px solid #ddd; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  #status { color: #666; }
+</style>
+</head>
+<body>
+<h1>Simulation engine</h1>
+<p>Team martin. API at <a href="/t/martin/">/t/martin/</a>: POST <code>run</code>, POST <code>compare</code>,
+GET <code>runs/ID/frames</code> and <code>runs/ID/events</code>. Full UI: <a href="/colony/amad">/colony/amad</a>.</p>
+<button id="go">Compare the example designs</button> <span id="status"></span>
+<table id="out" hidden>
+  <thead><tr><th>design</th><th>throughput veh/h</th><th>mean delay s</th><th>p95 delay s</th><th>stopped share</th><th>CO2 kg</th></tr></thead>
+  <tbody></tbody>
+</table>
+<script>
+const $ = (s) => document.querySelector(s);
+$('#go').onclick = async () => {
+  $('#status').textContent = 'running...';
+  try {
+    const ex = await (await fetch('/t/martin/examples')).json();
+    const r = await (await fetch('/t/martin/compare', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ designs: ex.designs, demand: ex.demand }),
+    })).json();
+    const tb = $('#out tbody');
+    tb.replaceChildren();
+    for (const x of r.results) {
+      const s = x.summary, tr = document.createElement('tr');
+      for (const v of [x.design.name || x.design.id, s.throughputVehPerHour, s.delay.meanSec, s.delay.p95Sec,
+        s.stops.stoppedShare, s.emissions.co2Kg]) {
+        const td = document.createElement('td'); td.textContent = v; tr.append(td);
+      }
+      tb.append(tr);
+    }
+    $('#out').hidden = false;
+    $('#status').textContent = '';
+  } catch (e) { $('#status').textContent = 'failed: ' + e.message; }
+};
+</script>
+</body>
+</html>
