@@ -117,6 +117,33 @@ module.exports = {
         sendJson(res, 200, await metricsFor(String(runId)));
         return true;
       }
+      if (req.method === 'POST' && path === '/compare-types') {
+        const body = await readBody(req);
+        const id = String(body.intersection || '');
+        if (!/^[a-z0-9-]+$/.test(id)) { sendJson(res, 400, { error: 'intersection id required' }); return true; }
+        const seed = Number(body.seed) || 7;
+        const dur = Math.min(Number(body.durationSec) || 300, 600);
+        const hour = Number.isInteger(body.hour) ? body.hour : 8;
+        const demand = body.demand || (await call('GET', '/t/backend/demand?intersection=' + id + '&hour=' + hour + '&durationSec=' + dur + '&seed=' + seed));
+        const base = await call('GET', '/t/be-christian/designs/' + id);
+        const sug = await call('POST', '/t/be-christian/suggest', { design: base, demand });
+        // one variant per junction type, the base design keeps its own type
+        const byType = {};
+        byType[base.type] = base;
+        for (const d of sug.suggestions || []) if (d.type && !byType[d.type]) byType[d.type] = d;
+        const types = Object.keys(byType);
+        if (types.length < 2) { sendJson(res, 422, { error: 'no alternative junction types available for ' + id }); return true; }
+        const r = await call('POST', '/t/martin/compare', { designs: types.map((t) => byType[t]), demand });
+        const ids = (r.results || r.runs || []).map((x) => x.runId || x.id);
+        const runs = [];
+        for (let i = 0; i < ids.length; i++) runs.push(Object.assign({ junctionType: types[i] }, await metricsFor(ids[i])));
+        const cmp = compareRuns(runs);
+        const typeOf = (runId) => (runs.find((x) => x.runId === runId) || {}).junctionType || null;
+        const bestType = {};
+        for (const [k, v] of Object.entries(cmp.best)) bestType[k] = typeOf(v);
+        sendJson(res, 200, { intersection: id, baseType: base.type, demand: runs[0].demand, runs, best: cmp.best, bestType, ranking: cmp.ranking, rankingTypes: cmp.ranking.map(typeOf) });
+        return true;
+      }
       if (req.method === 'POST' && path === '/compare') {
         const body = await readBody(req);
         let runIds = body.runIds;

@@ -121,3 +121,17 @@ test('mean delay counts vehicles that never got out', () => {
   assert.ok(d.meanSec > d.exitedMeanSec, JSON.stringify(d));
   assert.ok(d.perArm.N.meanSec > 3 * d.perArm.E.meanSec, JSON.stringify(d.perArm));
 });
+
+test('vehicles waiting inside a signal box keep their spacing', () => {
+  const arms = Object.fromEntries(['N', 'E', 'S', 'W'].map((id) => [id, { vehPerHour: 700, turning: { L: 0.4, S: 0.4, R: 0.2 }, pedPerHour: 400 }]));
+  const r = engine.simulate(signal, { durationSec: 300, seed: 5, arms }, { frameEverySec: 1 });
+  let close = 0;
+  for (const f of r.frames) {
+    const vs = f.v.filter((a) => a[1] !== 'bike');
+    for (let i = 0; i < vs.length; i++) for (let j = i + 1; j < vs.length; j++) {
+      let dh = Math.abs(vs[i][4] - vs[j][4]) % 360; if (dh > 180) dh = 360 - dh;
+      if (dh < 20 && Math.hypot(vs[i][2] - vs[j][2], vs[i][3] - vs[j][3]) < 2.7) close++;
+    }
+  }
+  assert.equal(close, 0);
+});

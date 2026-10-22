@@ -36,3 +36,6 @@ When the run's design id has measured flows (see realflows), the metrics carry `
 
 ## Delay fields (changed for engine 0.5)
 `delay.avgSec` stays the mean over EXITED vehicles. New: `delay.meanSec` = mean delay including unserved vehicles (martin summary.delay.meanSec, falls back to avgSec on older runs), `delay.unservedShare`, and `vehicles` {generated, exited, inNetwork, backlog}. `best.delay` and `ranking` now use `meanSec`, so a design that leaves traffic unserved no longer wins on delay.
+
+## POST /t/per/compare-types
+Body: `{"intersection":"sveavagen-odengatan","hour":8,"durationSec":300,"seed":7}` (all but intersection optional; or pass a full `demand`). Takes the base design from /t/be-christian/designs/ID, one variant per other junction type (signal | roundabout | priority) from /t/be-christian/suggest, runs all on identical demand through /t/martin/compare, and returns the usual compare result plus `baseType`, `bestType` (per metric, the winning junction type), `rankingTypes`, and `junctionType` on each run. 422 if no alternative type exists, 400 on a bad id.

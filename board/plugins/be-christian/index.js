@@ -9,9 +9,6 @@ const { flowNear } = require('./trafikverket');
 const BEARING_RETRY_MS = 5 * 60 * 1000;
 let lastBearingFail = 0;
 
-const BEARING_RETRY_MS = 5 * 60 * 1000;
-let lastBearingFail = 0;
-
 async function postJson(port, urlPath, body) {
   const res = await fetch('http://127.0.0.1:' + port + urlPath, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(90000),
