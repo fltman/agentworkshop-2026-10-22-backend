@@ -4,7 +4,7 @@ type: capability
 domain: backend
 tools: Read, Write, Edit, Bash
 model: sonnet
-energy: 80
+energy: 90
 spawned: 2026-10-22
 can-merge-with: [design-comparison]
 ---
@@ -41,3 +41,4 @@ Call other teams' plugins only with fetch to http://127.0.0.1:PORT/t/<team>/...,
 - 2026-10-22: Spawned at awakening
 - 2026-10-22: MUTATE: added upstream-call rule after lead review of PR #3; energy 50 -> 70 (used for plugin, tests)
 - 2026-10-22: energy -> 80 (calibration work)
+- 2026-10-22: MUTATE: rule added - prefer the engine run summary (all vehicles) over exit-only events for delay, stops, CO2, queue; events are fallback only. Energy 80 -> 90 (summary-based metrics, queue metres, bikes, per-arm delay).
