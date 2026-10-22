@@ -71,7 +71,11 @@ Fixed in v0.5.1: vehicles waiting inside a signal or priority box (for pedestria
 leader there and could stack on the same point. They now keep their spacing to the vehicle ahead on the same path or
 heading for the same exit lane.
 
-Known limits (v0.5): arms with `bearingDeg` far from 90° apart show somewhat more brief vehicle overlaps inside a signal box. the ring has at most 2 circulating lanes (`roundabout.lanes`, default 1). Inner-lane exits
+Fixed in v0.5.2: a vehicle entering a roundabout now also waits while the body of a long circulating vehicle (truck,
+bus) is still across its merge point, not only its front.
+
+Known limits (v0.5): at roundabout entries, long vehicles can still briefly touch a vehicle waiting at or merging
+from the entry (about 1-3 frames per 300 s at peak load). arms with `bearingDeg` far from 90° apart show somewhat more brief vehicle overlaps inside a signal box. the ring has at most 2 circulating lanes (`roundabout.lanes`, default 1). Inner-lane exits
 cross the outer lane without a lane-change model. Unsignalised crosswalks are zebras with a refuge island: pedestrians cross each half separately. Left turns on a signal are permissive unless they have their own phase: they yield to
 opposing straight and right traffic.
 

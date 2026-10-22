@@ -28,3 +28,4 @@ Finds out why a simulated intersection carries less (or more) traffic than it sh
 
 ## Evolution History
 - 2026-10-22 12:33: MUTATE: a mean over finished items is never enough on its own. Delay now includes unserved vehicles, with exitedMeanSec and unservedShare next to it (engine 0.5.0). Treat a report from another team that results look too good as a calibration bug report.
+- 2026-10-22 13:22: MUTATE (spore backend-14): real geometry and lane counts come from the OSM API map.json with a small bbox (Overpass times out). Before blaming the engine for oversaturation, compare preset lanes against OSM lanes/turn:lanes and compute lane capacity (about 1800 veh/h green per lane x green share).

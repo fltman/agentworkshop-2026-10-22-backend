@@ -48,3 +48,4 @@ After every deploy, run the live chain and report faults to the owning team in #
 GET /t/backend/demand?intersection=ID&hour=8 + GET /t/be-christian/designs/ID (unwrap `.design`)
 -> POST /t/martin/run {design, demand} -> POST /t/per/metrics {runId}.
 Check /t/martin/health reports the expected VERSION first.
+- 2026-10-22 13:23: SPLIT, live chain checks and bug-report reproduction moved to live-integration (energy 95 -> 65)
