@@ -12,3 +12,12 @@ junction centre to the street about 50 m out, per arm. Centre = where the named 
 
 Note: the OSM centres differ from backend's lat/lon by about 5 m (Sveavagen), 45 m (Hornsgatan),
 100 m (Valhallavagen) and 150 m (Fridhemsplan). That alone moves the overlay off the real junction.
+
+## Lane counts near the junctions (OSM `lanes` / `turn:lanes`, ways within 60 m)
+
+- sveavagen-odengatan: Sveavagen one-way carriageways with 2-3 lanes; Odengatan 1 lane (some segments untagged).
+- fridhemsplan: Fleminggatan 2 lanes, one approach tagged `left;through|right`; Fridhemsgatan 2 lanes.
+- hornsgatan-langholmsgatan: Langholmsgatan 2-4 lanes (`through|through|right|none`); Hornsgatan 2-4 lanes (`left|left|through|right`, `through|right`).
+- valhallavagen-birgerjarlsgatan: Valhallavagen 2-3 lanes (`left|left;through|through;right`); Birger Jarlsgatan 2.
+
+The presets have 1 shared lane on Sveavagen N/S, which alone makes the 08:00 peak oversaturated in any engine.
