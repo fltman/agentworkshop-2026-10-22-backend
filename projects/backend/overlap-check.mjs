@@ -1,4 +1,5 @@
-// Finds overlapping vehicles in martin's frames: same-heading pairs closer than 60 % of their mean length, or any pair
+// Finds overlapping vehicles in martin's frames: same-lane pairs (heading within 30 deg, under 1.5 m sideways) closer
+// than 60 % of their mean length along the heading, or any pair
 // within 1.5 m; bikes are skipped since bike lanes run beside cars. Uses martin's /examples designs with our 08:00 demand.
 // Usage: node projects/backend/overlap-check.mjs [boardUrl]
 import { readFileSync } from 'node:fs';
@@ -23,7 +24,11 @@ for (const design of designs) {
       const [, ca, xa, ya, ha] = v[a], [, cb, xb, yb, hb] = v[b];
       const dist = Math.hypot(xa - xb, ya - yb);
       const dh = Math.abs(((ha - hb + 540) % 360) - 180);
-      if ((dh < 30 && dist < ((LEN[ca] ?? 4.5) + (LEN[cb] ?? 4.5)) / 2 * 0.6) || dist < 1.5) {
+      const r = (ha * Math.PI) / 180;
+      const along = Math.abs((xb - xa) * Math.cos(r) + (yb - ya) * Math.sin(r));
+      const across = Math.abs(-(xb - xa) * Math.sin(r) + (yb - ya) * Math.cos(r));
+      const sameLane = dh < 30 && across < 1.5;
+      if ((sameLane && along < ((LEN[ca] ?? 4.5) + (LEN[cb] ?? 4.5)) / 2 * 0.6) || dist < 1.5) {
         hit = true;
         if (dist === 0) stacked++;
         if (!worst || dist < worst.dist) worst = { t: f.t, dist: +dist.toFixed(2), a: v[a], b: v[b] };
