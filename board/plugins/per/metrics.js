@@ -11,6 +11,20 @@ function percentile(sorted, p) {
   return sorted[Math.max(0, i)];
 }
 
+function queueFrom(sm, maxByArm, avgByArm) {
+  const pa = sm.queue && sm.queue.perArm;
+  const out = { maxByArm, avgByArm };
+  if (pa) {
+    out.maxMetersByArm = {};
+    for (const [arm, q] of Object.entries(pa)) {
+      if (!(arm in maxByArm) && q.maxVeh != null) out.maxByArm[arm] = q.maxVeh;
+      if (!(arm in avgByArm) && q.meanVeh != null) out.avgByArm[arm] = q.meanVeh;
+      if (q.maxMeters != null) out.maxMetersByArm[arm] = q.maxMeters;
+    }
+  }
+  return out;
+}
+
 // events: martin event list, frames: optional per-second frames (for queues)
 function computeMetrics(events, frames, durationSec, summary) {
   events = events || [];
@@ -50,23 +64,29 @@ function computeMetrics(events, frames, durationSec, summary) {
       totalSec: round(totalDelay),
     },
     vehicles: sm.vehicles || null,
-    queue: { maxByArm, avgByArm },
+    queue: queueFrom(sm, maxByArm, avgByArm),
     throughput: {
       vehicles: exits.length,
       perHour: dur ? Math.round((exits.length * 3600) / dur) : 0,
     },
+    // engine summary counts every vehicle, also those still in the network; exit-only is the fallback
     stopped: {
-      vehicles: stoppedVeh,
-      avgStopsPerVeh: round(exits.length ? totalStops / exits.length : 0, 2),
+      vehicles: sm.stops && sm.stops.stoppedVehicles != null ? sm.stops.stoppedVehicles : stoppedVeh,
+      share: sm.stops && sm.stops.stoppedShare != null ? sm.stops.stoppedShare : null,
+      avgStopsPerVeh: sm.stops && sm.stops.meanStopsPerVehicle != null ? sm.stops.meanStopsPerVehicle : round(exits.length ? totalStops / exits.length : 0, 2),
+      exitedVehicles: stoppedVeh,
     },
     pedestrians: {
       crossed: pedWaits.length,
       avgWaitSec: round(pedWaits.length ? pedWaits.reduce((s, w) => s + w, 0) / pedWaits.length : 0),
     },
     emissions: {
-      co2G: Math.round(co2),
-      co2GPerVeh: Math.round(exits.length ? co2 / exits.length : 0),
+      co2G: sm.emissions && sm.emissions.co2Kg != null ? Math.round(sm.emissions.co2Kg * 1000) : Math.round(co2),
+      co2GPerVeh: sm.emissions && sm.emissions.co2GPerVehicle != null ? sm.emissions.co2GPerVehicle : Math.round(exits.length ? co2 / exits.length : 0),
+      exitedCo2G: Math.round(co2),
     },
+    bikes: sm.bikes || null,
+    delayPerArm: (sm.delay && sm.delay.perArm) || null,
   };
 }
 

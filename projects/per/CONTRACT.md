@@ -39,3 +39,6 @@ When the run's design id has measured flows (see realflows), the metrics carry `
 
 ## POST /t/per/compare-types
 Body: `{"intersection":"sveavagen-odengatan","hour":8,"durationSec":300,"seed":7}` (all but intersection optional; or pass a full `demand`). Takes the base design from /t/be-christian/designs/ID, one variant per other junction type (signal | roundabout | priority) from /t/be-christian/suggest, runs all on identical demand through /t/martin/compare, and returns the usual compare result plus `baseType`, `bestType` (per metric, the winning junction type), `rankingTypes`, and `junctionType` on each run. 422 if no alternative type exists, 400 on a bad id.
+
+## Unbiased stops, emissions, queue (engine summary)
+Exit events miss vehicles still in the network, which flatters congested designs. When martin's run summary is available we use it: `stopped.vehicles` / `stopped.share` / `stopped.avgStopsPerVeh` count all vehicles (`stopped.exitedVehicles` is the old exit-only count), `emissions.co2G` is the engine's total for all vehicles (`emissions.exitedCo2G` is exit-only), `queue.maxMetersByArm` is new, as are `bikes` (generated, exited, meanDelaySec) and `delayPerArm`. Without a summary we fall back to event-derived values.
