@@ -30,3 +30,9 @@ Definitions: delay = delaySec on exit events; throughput = exit count; stopped =
 
 ## GET /t/per/realflows?intersection=ID
 Measured Stockholm flows near a junction, extracted from the open GPKG flow maps (motor within 150 m, bike/ped within 400 m). Without `intersection`: the list of available ids. Fields: `motor[]` {street, distM, adtAllDirections, heavyShare, veh06_18, veh18_22, veh22_06}, `bike[]`/`ped[]` {street, distM, weekdayFlow, year}. Ids match /t/backend/intersections (4 of the 6 have data; bike/ped only cover the inner city). Use it to replace estimated demand or to sanity-check simulated throughput.
+
+## calibration (in POST /t/per/metrics and each run in /compare)
+When the run's design id has measured flows (see realflows), the metrics carry `calibration`: `observedInboundVehPerHour` (busiest segment per street within 60 m, 06-18 average), `demandVehPerHour` (sum of arm demand), `simulatedThroughputPerHour`, and the ratios `demandVsObserved` and `throughputVsObserved` (about 1 means realistic). Otherwise `calibration` is null. Indicative only.
+
+## Delay fields (changed for engine 0.5)
+`delay.avgSec` stays the mean over EXITED vehicles. New: `delay.meanSec` = mean delay including unserved vehicles (martin summary.delay.meanSec, falls back to avgSec on older runs), `delay.unservedShare`, and `vehicles` {generated, exited, inNetwork, backlog}. `best.delay` and `ranking` now use `meanSec`, so a design that leaves traffic unserved no longer wins on delay.

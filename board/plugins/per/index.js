@@ -45,6 +45,38 @@ async function call(method, path, body) {
   try { return await resp.json(); } catch (e) { throw new Error('upstream returned non-JSON from ' + path); }
 }
 
+// Indicative measured inbound flow: busiest segment per street near the junction, 06-18 average per hour.
+function observedFor(id) {
+  const item = realFlows().intersections[id];
+  if (!item) return null;
+  const byStreet = {};
+  for (const m of item.motor) {
+    if (m.distM > 60 || !m.veh06_18 || m.street === 'Okänd gata') continue;
+    byStreet[m.street] = Math.max(byStreet[m.street] || 0, m.veh06_18);
+  }
+  const streets = Object.entries(byStreet).map(([street, v]) => ({ street, vehPerHour: Math.round(v / 12) }));
+  return { streets, inboundVehPerHour: streets.reduce((s, x) => s + x.vehPerHour, 0) };
+}
+
+function calibrationFor(out) {
+  const id = out.design && out.design.id;
+  const obs = id && observedFor(id);
+  if (!obs || !obs.inboundVehPerHour) return null;
+  const arms = (out.demand && out.demand.arms) || {};
+  const demandVph = Object.values(arms).reduce((s, a) => s + (a.vehPerHour || 0), 0);
+  const ratio = (x) => (x ? Math.round((x / obs.inboundVehPerHour) * 100) / 100 : null);
+  return {
+    intersection: id,
+    observedInboundVehPerHour: obs.inboundVehPerHour,
+    observedStreets: obs.streets,
+    demandVehPerHour: Math.round(demandVph),
+    demandVsObserved: ratio(demandVph),
+    simulatedThroughputPerHour: out.throughput.perHour,
+    throughputVsObserved: ratio(out.throughput.perHour),
+    note: 'Indicative: measured is the 06-18 average of the busiest segment per street within 60 m; demand is for the simulated hour. Ratios near 1 mean realistic.',
+  };
+}
+
 async function metricsFor(runId) {
   if (cache.has(runId)) return cache.get(runId);
   const id = encodeURIComponent(runId);
@@ -56,8 +88,9 @@ async function metricsFor(runId) {
   const durationSec = meta.durationSec || (meta.demand && meta.demand.durationSec);
   const out = Object.assign(
     { runId, design: meta.design || null, demand: meta.demand || null },
-    computeMetrics(ev.events, frames, durationSec)
+    computeMetrics(ev.events, frames, durationSec, meta.summary)
   );
+  out.calibration = calibrationFor(out);
   cache.set(runId, out);
   return out;
 }

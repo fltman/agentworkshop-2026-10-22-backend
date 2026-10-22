@@ -4,7 +4,7 @@ type: capability
 domain: backend
 tools: Read, Write, Edit, Bash
 model: sonnet
-energy: 70
+energy: 80
 spawned: 2026-10-22
 can-merge-with: [design-comparison]
 ---
@@ -40,3 +40,4 @@ Call other teams' plugins only with fetch to http://127.0.0.1:PORT/t/<team>/...,
 
 - 2026-10-22: Spawned at awakening
 - 2026-10-22: MUTATE: added upstream-call rule after lead review of PR #3; energy 50 -> 70 (used for plugin, tests)
+- 2026-10-22: energy -> 80 (calibration work)
