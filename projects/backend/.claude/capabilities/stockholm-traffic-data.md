@@ -4,7 +4,7 @@ type: capability
 domain: data
 tools: Read, Write, Edit, Bash, WebFetch
 model: inherit
-energy: 70
+energy: 80
 spawned: 2026-10-22
 can-merge-with: demand-api
 ---
@@ -46,3 +46,5 @@ This capability does NOT handle:
 ## Evolution History
 
 - 2026-10-22: Spawned with initial configuration
+
+- Volumes come from measured flows: re-run `node projects/backend/calibrate.mjs` (from repo root) after per's /t/per/realflows changes; mark arms without a segment `estimated`.
