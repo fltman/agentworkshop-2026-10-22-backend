@@ -50,6 +50,7 @@ designs comparable.
 | `arms[].inLanes` | one array per inbound lane, leftmost first, listing the allowed turns | 1 lane `[L,S,R]` |
 | `arms[].outLanes` | number of outbound lanes | same as the number of inbound lanes |
 | `arms[].speedLimit` | km/h | 50 |
+| `arms[].bearingDeg` | optional real compass bearing of the arm, degrees clockwise from north, pointing away from the centre (v0.4). Must be within 60° of the label (N 0, E 90, S 180, W 270), arms at least 30° apart in clockwise N, E, S, W order. Geometry, crosswalks and frames follow it; turns still follow the labels (from N, L goes to E). Sharp angles push the stop lines out. Layout echoes `bearingDeg` and `angleDeg` = 90 - bearingDeg (math degrees, 0 = east, counter-clockwise, -180..180) | label's bearing |
 | `arms[].length` | approach length modelled, metres | 150 |
 | `arms[].crosswalk`, `bikeLane` | whether pedestrians / bikes exist on this arm | true / true |
 | `bannedMovements` | movement ids that are not allowed; their demand is spread over the remaining turns | `[]` |
@@ -61,7 +62,7 @@ designs comparable.
 Also accepted (the design module's shape): `arms` as a map `{ "N": {...} }`, `inLanes` as
 `[{ "turns": ["L","S"] }]`, top-level `phases: [{ "durationSec": 30, "green": ["N:S", ...] }]` and top-level `radius`.
 
-Known limits (v0.2): the ring has at most 2 circulating lanes (`roundabout.lanes`, default 1). Inner-lane exits
+Known limits (v0.4): arms with `bearingDeg` far from 90° apart show somewhat more brief vehicle overlaps inside a signal box. the ring has at most 2 circulating lanes (`roundabout.lanes`, default 1). Inner-lane exits
 cross the outer lane without a lane-change model. Unsignalised crosswalks are zebras with a refuge island: pedestrians cross each half separately. Left turns on a signal are permissive unless they have their own phase: they yield to
 opposing straight and right traffic.
 
@@ -133,7 +134,7 @@ Errors: HTTP 400 `{ "error": "invalid input", "details": ["arms[0].id must be N,
 ```json
 {
   "type": "signal", "laneWidth": 3.5, "stopDist": 14,
-  "arms": [{ "id": "N", "angleDeg": 90, "inLanes": 2, "inLaneTurns": [["L","S"],["S","R"]], "outLanes": 2,
+  "arms": [{ "id": "N", "angleDeg": 90, "bearingDeg": 0, "inLanes": 2, "inLaneTurns": [["L","S"],["S","R"]], "outLanes": 2,
              "length": 150, "crosswalk": true, "bikeLane": true }],
   "roundabout": null,      // roundabouts: { "radius": 20, "lanes": 2 }
   "signal": { "phases": [{ "green": 30, "amber": 3, "allRed": 2, "movements": ["N:L", "..."] }] },

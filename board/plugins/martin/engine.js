@@ -3,9 +3,8 @@
 // Pure, deterministic microsimulation: design + demand + seed -> summary, frames, events.
 // No I/O here; index.js wraps it in HTTP.
 
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 const ARMS = ['N', 'E', 'S', 'W'];
-const ARM_ANGLE = { N: 90, E: 0, S: -90, W: 180 };
 const TURNS = ['L', 'S', 'R'];
 const TURN_RANK = { S: 3, R: 2, L: 1 };
 
@@ -183,13 +182,30 @@ function normalizeDesign(raw, errors) {
     if (speedLimit < 10 || speedLimit > 110) errors.push(`arms[${i}].speedLimit must be 10 to 110 km/h`);
     const length = Number(a.length) || 150;
     if (length < 40 || length > 600) errors.push(`arms[${i}].length must be 40 to 600 m`);
+    // Optional real-world compass bearing of the arm (clockwise from north). Turns still follow the N/E/S/W labels.
+    const nominal = { N: 0, E: 90, S: 180, W: 270 }[a.id];
+    let bearing = nominal;
+    if (a.bearingDeg != null) {
+      bearing = ((Number(a.bearingDeg) % 360) + 360) % 360;
+      const off = ((bearing - nominal + 540) % 360) - 180;
+      if (!Number.isFinite(off) || Math.abs(off) > 60) errors.push(`arms[${i}].bearingDeg must be within 60 degrees of ${nominal} for arm ${a.id}`);
+    }
     arms[a.id] = {
-      id: a.id, inLanes, outLanes, speedLimit, v0: speedLimit / 3.6, length,
+      id: a.id, inLanes, outLanes, speedLimit, v0: speedLimit / 3.6, length, bearing, angle: 90 - bearing <= -180 ? 450 - bearing : 90 - bearing,
       crosswalk: a.crosswalk !== false, bikeLane: a.bikeLane !== false,
     };
   });
   const armIds = ARMS.filter((id) => arms[id]);
   if (armIds.length < 2 && Array.isArray(d.arms)) errors.push('design needs at least 2 arms');
+  if (armIds.length >= 2) {
+    let total = 0;
+    armIds.forEach((id, k) => {
+      const gap = (arms[armIds[(k + 1) % armIds.length]].bearing - arms[id].bearing + 360) % 360;
+      total += gap;
+      if (gap < 30 && armIds.length > 1) errors.push(`arms ${id} and ${armIds[(k + 1) % armIds.length]} must be at least 30 degrees apart, in clockwise N, E, S, W order`);
+    });
+    if (Math.round(total) !== 360 && !errors.some((e) => e.includes('30 degrees'))) errors.push('arm bearings must keep the clockwise N, E, S, W order');
+  }
   const banned = new Set(Array.isArray(d.bannedMovements) ? d.bannedMovements : []);
   for (const b of banned) if (!/^[NESW]:[LSR]$/.test(b)) errors.push(`bannedMovements: bad movement id ${b}`);
 
@@ -321,14 +337,21 @@ function buildGeometry(design) {
   const box = maxHalf + 1;
   const isRb = design.type === 'roundabout';
   const R = design.radius;
-  const stopDist = isRb ? R + W * 1.2 + 6 : box + 4;
+  // Arms meeting at a sharp angle need the stop lines further out so the approaches do not overlap.
+  let minGap = 90;
+  design.armIds.forEach((id, k) => {
+    const next = design.armIds[(k + 1) % design.armIds.length];
+    if (next !== id) minGap = Math.min(minGap, (design.arms[next].bearing - design.arms[id].bearing + 360) % 360);
+  });
+  const sharp = box / Math.tan((Math.max(30, minGap) * Math.PI) / 360);
+  const stopDist = isRb ? Math.max(R + W * 1.2 + 6, sharp + 4) : Math.max(box + 4, sharp + 4);
   geo.stopDist = stopDist;
   geo.box = box;
 
   for (const id of design.armIds) {
     const a = design.arms[id];
     if (!a.crosswalk) continue;
-    const u = vec(ARM_ANGLE[id]);
+    const u = vec(design.arms[id].angle);
     const inRight = rightOf(mul(u, -1));
     const outRight = rightOf(u);
     const halfIn = (a.inLanes.length + (a.bikeLane ? 0.6 : 0)) * W;
@@ -339,7 +362,7 @@ function buildGeometry(design) {
 
   for (const from of design.armIds) {
     const a = design.arms[from];
-    const u = vec(ARM_ANGLE[from]);
+    const u = vec(design.arms[from].angle);
     const inDir = mul(u, -1);
     const inRight = rightOf(inDir);
     const lanesSpec = a.inLanes.map((turns, i) => ({ key: i, turns, off: W * (i + 0.5) }));
@@ -349,7 +372,7 @@ function buildGeometry(design) {
         const to = exitArmOf(from, turn);
         const b = design.arms[to];
         if (!b) continue;
-        const v = vec(ARM_ANGLE[to]);
+        const v = vec(design.arms[to].angle);
         const outRight = rightOf(v);
         let outLane;
         if (lane.key === 'bike') outLane = null;
@@ -442,7 +465,7 @@ function layoutOf(design, geo) {
     type: design.type, laneWidth: design.laneWidth, stopDist: r2(geo.stopDist), box: r2(geo.box),
     arms: design.armIds.map((id) => {
       const a = design.arms[id];
-      return { id, angleDeg: ARM_ANGLE[id], inLanes: a.inLanes.length, inLaneTurns: a.inLanes, outLanes: a.outLanes,
+      return { id, angleDeg: a.angle, bearingDeg: a.bearing, inLanes: a.inLanes.length, inLaneTurns: a.inLanes, outLanes: a.outLanes,
         length: a.length, speedLimit: a.speedLimit, crosswalk: a.crosswalk, bikeLane: a.bikeLane };
     }),
     roundabout: design.type === 'roundabout' ? { radius: design.radius, lanes: design.ringLanes } : null,
