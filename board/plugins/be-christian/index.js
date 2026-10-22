@@ -3,6 +3,28 @@ const fs = require('fs');
 const path = require('path');
 const PRESETS = require('./presets');
 const { suggest } = require('./suggest');
+const http = require('http');
+
+function postJson(port, urlPath, body) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const r = http.request({ host: '127.0.0.1', port, path: urlPath, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) }, timeout: 90000 }, (res) => {
+      let b = '';
+      res.on('data', (c) => { b += c; });
+      res.on('end', () => { try { resolve({ status: res.statusCode, json: JSON.parse(b) }); } catch (e) { reject(e); } });
+    });
+    r.on('timeout', () => r.destroy(new Error('timeout')));
+    r.on('error', reject);
+    r.end(data);
+  });
+}
+
+// Lower is better: mean delay, with unserved vehicles weighted as heavy delay.
+function score(summary) {
+  const v = summary.vehicles || {};
+  const unserved = (v.inNetwork || 0) + (v.backlog || 0);
+  return (summary.delay && summary.delay.meanSec || 0) + 120 * (v.generated ? unserved / v.generated : 0);
+}
 
 const ARMS = ['N', 'E', 'S', 'W'];
 const TURNS = ['L', 'S', 'R'];
@@ -99,6 +121,15 @@ module.exports = {
           const berr = validate(base);
           if (berr.length) return send(400, { ok: false, errors: berr });
           const suggestions = suggest(base, d.demand).filter((s) => !validate(s).length);
+          if (d.evaluate) {
+            const dem = Object.assign({}, d.demand);
+            dem.durationSec = Math.min(Number(dem.durationSec) || 300, 600);
+            const r = await postJson(Number(process.env.PORT || 8180), '/t/martin/compare', { designs: [base].concat(suggestions), demand: dem });
+            if (r.status !== 200 || !Array.isArray(r.json.results)) return send(502, { error: 'simulation engine failed', details: r.json });
+            const ranking = r.json.results.map((x) => ({ designId: x.design.id, runId: x.runId, score: Math.round(score(x.summary) * 10) / 10, delayMeanSec: x.summary.delay.meanSec, throughputVehPerHour: x.summary.throughputVehPerHour, backlog: x.summary.vehicles.backlog, co2Kg: x.summary.emissions && x.summary.emissions.co2Kg }))
+              .sort((a, b) => a.score - b.score);
+            return send(200, { base: base.id || null, suggestions, ranking, demand: r.json.demand });
+          }
           return send(200, { base: base.id || null, suggestions });
         }
         const errors = validate(d);
