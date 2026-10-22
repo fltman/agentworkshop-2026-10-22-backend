@@ -79,3 +79,13 @@ test('single-lane roundabout carries moderate four-way traffic without collision
   }
   assert.ok(overlaps < 20, `vehicles overlapped in ${overlaps} frame pairs`);
 });
+
+test('a two-lane roundabout carries clearly more than a single-lane one', () => {
+  const arms = Object.fromEntries(['N', 'E', 'S', 'W'].map((id) => [id, { vehPerHour: 700, turning: { L: 0.25, S: 0.5, R: 0.25 }, mix: { car: 1 }, pedPerHour: 0, bikePerHour: 0 }]));
+  const mk = (lanes) => ({ ...roundabout, roundabout: { radius: 20, lanes },
+    arms: Object.fromEntries(['N', 'E', 'S', 'W'].map((id) => [id, { inLanes: [{ turns: ['L', 'S'] }, { turns: ['S', 'R'] }], outLanes: 2 }])) });
+  const one = engine.simulate(mk(1), { durationSec: 900, seed: 42, arms }).summary.throughputVehPerHour;
+  const two = engine.simulate(mk(2), { durationSec: 900, seed: 42, arms }).summary.throughputVehPerHour;
+  assert.ok(two > one * 1.3, `two-lane ${two} vs single-lane ${one}`);
+  assert.ok(engine.simulate(mk(3), { durationSec: 60, seed: 1, arms }).errors.some((e) => e.includes('lanes must be 1 or 2')));
+});

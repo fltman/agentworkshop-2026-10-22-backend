@@ -3,7 +3,7 @@
 // Pure, deterministic microsimulation: design + demand + seed -> summary, frames, events.
 // No I/O here; index.js wraps it in HTTP.
 
-const VERSION = '0.1.1';
+const VERSION = '0.2.0';
 const ARMS = ['N', 'E', 'S', 'W'];
 const ARM_ANGLE = { N: 90, E: 0, S: -90, W: 180 };
 const TURNS = ['L', 'S', 'R'];
@@ -223,17 +223,21 @@ function normalizeDesign(raw, errors) {
       }
     }
   }
-  let radius = 15;
+  let radius = 15, ringLanes = 1;
   if (type === 'roundabout') {
     radius = Number(d.roundabout && d.roundabout.radius) || 15;
     if (radius < 8 || radius > 40) errors.push('roundabout.radius must be 8 to 40 m');
+    const rl = d.roundabout && (d.roundabout.lanes != null ? d.roundabout.lanes : d.roundabout.circulatingLanes);
+    ringLanes = rl == null ? 1 : Number(rl);
+    if (ringLanes !== 1 && ringLanes !== 2) errors.push('roundabout.lanes must be 1 or 2');
+    else if (ringLanes === 2 && radius < 12) errors.push('a 2-lane roundabout needs roundabout.radius of at least 12 m');
   }
   const major = new Set(d.priority && Array.isArray(d.priority.major) ? d.priority.major : ['N', 'S']);
 
   return {
     id: String(d.id || 'design'), name: String(d.name || d.id || 'Unnamed design'),
     origin: d.origin === 'existing' ? 'existing' : 'user',
-    type, laneWidth, arms, armIds, banned, phases, radius, major,
+    type, laneWidth, arms, armIds, banned, phases, radius, ringLanes, major,
   };
 }
 
@@ -338,10 +342,12 @@ function buildGeometry(design) {
         const stop = add(mul(u, stopDist), mul(inRight, lane.off));
         const exit = add(mul(v, stopDist), mul(outRight, outOff));
         const end = add(mul(v, stopDist + 100), mul(outRight, outOff));
-        let mid;
+        let mid, ringLane = null, ringR = 0;
         if (isRb) {
           // Counter-clockwise ring (right-hand traffic).
-          const ringR = R + (lane.key === 'bike' ? W * 1.2 : 0);
+          // Two-lane ring: the leftmost entry lane of a multi-lane arm circulates on the inner lane.
+          ringLane = lane.key === 'bike' ? 'bike' : (design.ringLanes === 2 && a.inLanes.length > 1 && lane.key === 0 ? 1 : 0);
+          ringR = ringLane === 'bike' ? R + W * 1.2 : R - (ringLane === 1 ? W : 0);
           const thIn = Math.atan2(u[1], u[0]) + Math.min(0.6, (lane.off + 2) / ringR);
           let thOut = Math.atan2(v[1], v[0]) - Math.min(0.6, (outOff + 2) / ringR);
           while (thOut <= thIn + 0.2) thOut += 2 * Math.PI;
@@ -362,6 +368,7 @@ function buildGeometry(design) {
           const last = mid[mid.length - 1];
           path.thRingStart = Math.atan2(mid[0][1], mid[0][0]);
           path.thRingEnd = Math.atan2(last[1], last[0]);
+          path.ringLane = ringLane; path.ringR = ringR;
         }
         path.sStop = a.length;
         path.sExit = path.length - 100;
@@ -419,7 +426,7 @@ function layoutOf(design, geo) {
       return { id, angleDeg: ARM_ANGLE[id], inLanes: a.inLanes.length, inLaneTurns: a.inLanes, outLanes: a.outLanes,
         length: a.length, speedLimit: a.speedLimit, crosswalk: a.crosswalk, bikeLane: a.bikeLane };
     }),
-    roundabout: design.type === 'roundabout' ? { radius: design.radius } : null,
+    roundabout: design.type === 'roundabout' ? { radius: design.radius, lanes: design.ringLanes } : null,
     crosswalks: Object.entries(geo.crosswalks).map(([arm, [p, q]]) => ({ arm, x1: r2(p[0]), y1: r2(p[1]), x2: r2(q[0]), y2: r2(q[1]) })),
     bannedMovements: [...design.banned],
     signal: design.phases ? { phases: design.phases.map((p) => ({ green: p.green, amber: p.amber, allRed: p.allRed, movements: [...p.movements] })) } : null,
@@ -544,7 +551,7 @@ function simulate(rawDesign, rawDemand, options = {}) {
   function trackOf(v) {
     if (v.s < v.path.sStop) return v.path.inKey;
     if (v.s >= v.path.sExit) return v.path.outKey;
-    return isRb ? (v.path.isBike ? 'ringbike' : 'ring') : null;
+    return isRb ? (v.path.isBike ? 'ringbike' : 'ring' + v.path.ringLane) : null;
   }
   const trackPos = (v) => (v.s >= v.path.sExit ? v.s - v.path.sExit : v.s);
 
@@ -619,16 +626,16 @@ function simulate(rawDesign, rawDemand, options = {}) {
         if (w === v || w.path.isBike !== p.isBike || !inBox(w)) continue;
         if (w.path.from === p.from) {
           // Same inbound lane: car-following handles it. Other lane on the same arm: do not merge side by side.
-          if (w.path.lane !== p.lane && w.s < w.path.sRingStart + 6) { lastReason = 'yield:' + w.path.key; return false; }
+          if (w.path.lane !== p.lane && w.path.ringLane === p.ringLane && w.s < w.path.sRingStart + 6) { lastReason = 'yield:' + w.path.key; return false; }
           continue;
         }
         if (w.s < w.path.sRingStart - 3 || w.s > w.path.sRingEnd) continue;
         const thW = angleOf(w);
-        const arc = wrap(thE - thW) * design.radius;
+        const arc = wrap(thE - thW) * p.ringR;
         if (arc > -3 && arc < Math.max(10, w.v * 3.5)) {
           // Does it still circulate when it reaches our merge point?
           let rem = w.path.thRingEnd - thW; while (rem < -0.3) rem += 2 * Math.PI;
-          if (rem > arc / design.radius - 0.05) { lastReason = 'yield:' + w.path.key; return false; }
+          if (rem > arc / p.ringR - 0.05) { lastReason = 'yield:' + w.path.key; return false; }
         }
       }
       return true;
@@ -743,7 +750,7 @@ function simulate(rawDesign, rawDemand, options = {}) {
     }
     const leader = new Map();
     for (const [k, list] of tracks) {
-      if (k === 'ring' || k === 'ringbike') {
+      if (k.startsWith('ring')) {
         // Ring = circulating plus the short entry/exit connectors. Only vehicles actually on the ring lead
         // ring traffic; connector vehicles follow their own lane, exiting ones also the outbound lane.
         const onRing = (x) => x.s >= x.path.sRingStart - 1 && x.s <= x.path.sRingEnd + 1;
@@ -758,6 +765,8 @@ function simulate(rawDesign, rawDemand, options = {}) {
             for (const b of ang) {
               if (b !== a && b.v.path.outKey === ap.outKey && b.v.s > ap.sRingEnd && b.v.s - b.v.path.sExit > av.s - ap.sExit) consider(b.v, (b.v.s - b.v.path.sExit) - (av.s - ap.sExit) - b.v.cls.len);
             }
+            // Exits from the other ring lane can merge into the same outbound lane.
+            for (const [k2, l2] of tracks) if (k2 !== k && k2.startsWith('ring')) for (const b of l2) if (b.path.outKey === ap.outKey && b.s > b.path.sRingEnd && b.s - b.path.sExit > av.s - ap.sExit) consider(b, (b.s - b.path.sExit) - (av.s - ap.sExit) - b.cls.len);
             for (const b of tracks.get(ap.outKey) || []) consider(b, (b.s - b.path.sExit) + (ap.sExit - av.s) - b.cls.len);
           } else {
             let rem = ap.thRingEnd - a.th; while (rem < -0.3) rem += 2 * Math.PI;
@@ -768,7 +777,7 @@ function simulate(rawDesign, rawDemand, options = {}) {
               if (!b.foot && !(b.v.s > bp.sRingEnd && bp.outKey === ap.outKey)) continue;
               let d = b.th - a.th; while (d <= 0) d += 2 * Math.PI;
               if (d > rem + 0.3) continue;
-              consider(b.v, d * design.radius - b.v.cls.len);
+              consider(b.v, d * ap.ringR - b.v.cls.len);
             }
           }
           if (best && bestGap < 40) leader.set(av, { gap: bestGap, v: best.v });
