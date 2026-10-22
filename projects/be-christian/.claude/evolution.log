@@ -1,0 +1,5 @@
+# HIVE Evolution Log
+2026-10-22 10:05 SPAWN: metrics-engine (need: delay/queue/throughput/stops/emissions from sim event logs)
+2026-10-22 10:05 SPAWN: design-compare (need: compare designs under identical traffic)
+2026-10-22 10:08 DISSOLVE: metrics-engine, design-compare (per claimed metrics+comparison first)
+2026-10-22 10:08 SPAWN: design-library (need: intersection design module presets, user designs, validation)
