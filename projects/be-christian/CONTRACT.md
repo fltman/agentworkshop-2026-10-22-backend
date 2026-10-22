@@ -8,7 +8,7 @@ Base: `/t/be-christian/`. Design JSON follows martin's contract (arms N/E/S/W = 
 - `GET /designs/:id` -> full design JSON
 - `POST /designs` -> save a user design (origin forced to `user`), returns `{"id"}`
 - `DELETE /designs/:id` -> deletes a user design (403 for existing presets, 404 if unknown)
-- `GET /osm?lat=&lon=` or `GET /osm?design=<id>` -> `{design, valid, errors}`: draft design built from OpenStreetMap (Overpass): arms by bearing, lanes from tags, signal/roundabout detected, origin `user`, `osm.roads` per arm. 422 if fewer than 3 approach roads, 502 if Overpass is down, 400 outside Sweden. Data from OpenStreetMap contributors (ODbL). Not saved; POST it to /designs to keep it.
+- `GET /osm?lat=&lon=` or `GET /osm?design=<id>` -> `{design, valid, errors}`: draft design built from OpenStreetMap (Overpass): arms by bearing, lanes from tags, signal/roundabout detected, origin `user`, `osm.roads` per arm and `osm.geometry` (road centrelines as [x,y] metres, x east, y north, origin at the junction) for drawing a map background. 422 if fewer than 3 approach roads, 502 if Overpass is down, 400 outside Sweden. Data from OpenStreetMap contributors (ODbL). Not saved; POST it to /designs to keep it.
 - `POST /validate` -> `{"ok":bool,"errors":[...]}`
 - `POST /suggest` `{base:"<design id>" | design:{...}, demand:{arms:{N:{vehPerHour,turning:{L,S,R}},...}}}` -> `{"suggestions":[design,...]}`: unsaved variants (demand-balanced signal split, dedicated left lanes, roundabout conversion, larger roundabout), each with `origin:"user"`, `suggested:true`, `basedOn`, `rationale`. Save one with POST /designs. Add `evaluate:true` (demand must then be martin's full DEMAND shape, duration capped at 600 s) to also run base + variants through `/t/martin/compare`: response gains `ranking` sorted best first by `score` (mean delay + 120 x unserved share), with delayMeanSec, throughputVehPerHour, backlog, co2Kg, runId.
 
@@ -21,6 +21,7 @@ Base: `/t/be-christian/`. Design JSON follows martin's contract (arms N/E/S/W = 
  "radius":null,"bannedMovements":["N:L"]}
 ```
 
+- Optional `roundabout: {radius, lanes}` (lanes 1|2, 2 needs radius >= 12) follows martin's engine 0.2.0; top-level `radius` stays for compatibility.
 - type: `signal` | `roundabout` | `priority`; `radius` (m) only for roundabout; `phases` only for signal.
 - Turns: L/S/R. Movement id: `N:L`. Every movement in `phases` or `bannedMovements` must exist.
 
