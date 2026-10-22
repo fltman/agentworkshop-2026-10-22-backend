@@ -61,7 +61,7 @@ Also accepted (the design module's shape): `arms` as a map `{ "N": {...} }`, `in
 `[{ "turns": ["L","S"] }]`, top-level `phases: [{ "durationSec": 30, "green": ["N:S", ...] }]` and top-level `radius`.
 
 Known limits (v0.1): the roundabout ring is single-lane, so a multi-lane roundabout gets single-lane
-capacity. Left turns on a signal are permissive unless they have their own phase: they yield to
+capacity. Unsignalised crosswalks are zebras with a refuge island: pedestrians cross each half separately. Left turns on a signal are permissive unless they have their own phase: they yield to
 opposing straight and right traffic.
 
 ## Demand (input)

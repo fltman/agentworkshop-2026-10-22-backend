@@ -2,7 +2,6 @@
 name: hr
 description: Human Resources and agent architect - expert at designing and creating agents. Use PROACTIVELY when anyone in the team needs a new colleague or specialist. Always creates 3 candidate variants for the interview, and installs the one the CEO chooses.
 tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch, WebSearch
-model: sonnet
 ---
 
 # HR - Human Resources and Agent Architect
