@@ -92,6 +92,7 @@
             <label><input type="radio" name="dtype" value="roundabout"><span>Roundabout</span></label>
             <label><input type="radio" name="dtype" value="priority"><span>Priority</span></label>
           </div>
+          <div class="hint">Switching asks the design module for a converted layout, runs it and compares it with the original (same demand &amp; seed).</div>
         </div>
         <label class="field" id="radiusField">
           <span class="field-label">Roundabout radius <output id="radiusOut" class="field-val">15 m</output></span>
@@ -135,6 +136,20 @@
   </aside>
 
   <main class="stage">
+    <div class="typebar" id="typebar">
+      <span class="typebar-label" id="jtypeLabel">Junction type</span>
+      <div class="seg seg-type" id="jtype" role="radiogroup" aria-labelledby="jtypeLabel">
+        <label><input type="radio" name="jtype" value="signal"><span><i class="ti-ico" aria-hidden="true">🚦</i> Signal</span></label>
+        <label><input type="radio" name="jtype" value="roundabout"><span><i class="ti-ico" aria-hidden="true">⟳</i> Roundabout</span></label>
+        <label><input type="radio" name="jtype" value="priority"><span><i class="ti-ico" aria-hidden="true">▽</i> Priority</span></label>
+      </div>
+      <div class="seg seg-sm" id="rbLanes" role="radiogroup" aria-label="Roundabout lanes" hidden>
+        <label title="Single circulating lane"><input type="radio" name="rbLanes" value="1" checked><span>1 lane</span></label>
+        <label title="Two circulating lanes (only offered for multi-lane approaches)"><input type="radio" name="rbLanes" value="2"><span>2 lanes</span></label>
+      </div>
+      <span id="typeState" class="type-state" role="status" aria-live="polite"></span>
+      <button id="typeRestore" class="btn btn-ghost btn-xs" type="button" hidden>↺ Restore original</button>
+    </div>
     <div class="canvas-wrap">
       <div id="mapLayer" class="map-layer" hidden></div>
       <canvas id="cv" aria-label="Intersection simulation view"></canvas>
