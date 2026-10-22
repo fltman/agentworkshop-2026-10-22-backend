@@ -18,3 +18,5 @@
 2026-10-22 12:33 MUTATE: sim-calibration 90, delay must include unserved vehicles and report unservedShare (survivor bias found by backend, engine 0.5.0)
 2026-10-22 12:45 ENERGY: junction-conflicts 70 (box vehicles stacked without a leader, backend report, PR #38)
 2026-10-22 12:56 ENERGY: junction-conflicts 80 (roundabout entry yield ignored truck length, backend report, PR #42)
+2026-10-22 13:22 MUTATE: sim-calibration checks preset lane capacity against OSM before blaming the engine (integrated spore backend-14)
+2026-10-22 13:23 SPLIT: sim-api -> sim-api (65) + live-integration (60) (energy 95 over threshold; live checks and report reproduction came up five times)
