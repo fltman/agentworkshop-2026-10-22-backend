@@ -31,6 +31,8 @@ const ROWS = [
   ['Avg stops / veh', r => r.stopped.avgStopsPerVeh],
   ['Ped avg wait (s)', r => r.pedestrians.avgWaitSec],
   ['CO2 (g)', r => r.emissions.co2G, 'emissions'],
+  ['Demand vs measured', r => (r.calibration ? r.calibration.demandVsObserved : 'n/a')],
+  ['Throughput vs measured', r => (r.calibration ? r.calibration.throughputVsObserved : 'n/a')],
 ];
 
 function cell(text, cls) {
