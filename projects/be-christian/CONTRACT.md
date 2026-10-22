@@ -31,3 +31,7 @@ Exact field names will be aligned with projects/martin/CONTRACT.md; martin's ver
 ## /suggest conversion variants (roundabouts, and T-junctions)
 - `tosignal`: converts a non-signal base to a signal, 60 s cycle with demand-balanced phases.
 - `topriority`: converts a non-signal, non-priority base to `type:"priority"` with `priority.major` set to the busiest axis.
+
+## GET /trafficflow (Trafikverket TrafficFlow)
+`?design=ID` or `?lat=&lon=`, optional `&radius=` in metres (100-2000, default 500). Returns `{source, center, radiusM, sites:[{siteId, wgs84, measurements:[{time, vehiclesPerHour, avgSpeedKmh, vehicleType, lane}]}]}`.
+Cached 5 min. Only state-road measurement sites exist, so city streets may return no sites. 503 when the server has no key. The key is never returned.
