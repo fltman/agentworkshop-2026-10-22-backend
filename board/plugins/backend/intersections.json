@@ -1,0 +1,485 @@
+{
+  "note": "Weekday volumes estimated from Stockholm stad published annual average daily traffic (ADT) per street; turning shares, vehicle mix and pedestrian/bicycle peaks are assumptions. Every arm value is inbound traffic (arm = where traffic comes FROM).",
+  "hourlyShare": [
+    0.008,
+    0.005,
+    0.004,
+    0.004,
+    0.008,
+    0.022,
+    0.05,
+    0.075,
+    0.078,
+    0.058,
+    0.05,
+    0.052,
+    0.055,
+    0.055,
+    0.058,
+    0.065,
+    0.075,
+    0.078,
+    0.062,
+    0.045,
+    0.035,
+    0.025,
+    0.018,
+    0.012
+  ],
+  "activeShare": [
+    0.05,
+    0.03,
+    0.02,
+    0.02,
+    0.05,
+    0.15,
+    0.45,
+    0.85,
+    1,
+    0.7,
+    0.55,
+    0.65,
+    0.8,
+    0.75,
+    0.7,
+    0.75,
+    0.9,
+    1,
+    0.85,
+    0.6,
+    0.45,
+    0.3,
+    0.18,
+    0.1
+  ],
+  "intersections": [
+    {
+      "id": "sveavagen-odengatan",
+      "name": "Sveavägen / Odengatan",
+      "lat": 59.3431,
+      "lon": 18.056,
+      "source": "Stockholm stad traffic counts (ADT, estimated)",
+      "estimated": true,
+      "arms": {
+        "N": {
+          "road": "Sveavägen",
+          "adtIn": 9000,
+          "turning": {
+            "L": 0.15,
+            "S": 0.7,
+            "R": 0.15
+          },
+          "mix": {
+            "car": 0.84,
+            "bus": 0.06,
+            "truck": 0.1
+          },
+          "pedPeak": 900,
+          "bikePeak": 350
+        },
+        "S": {
+          "road": "Sveavägen",
+          "adtIn": 9500,
+          "turning": {
+            "L": 0.15,
+            "S": 0.7,
+            "R": 0.15
+          },
+          "mix": {
+            "car": 0.84,
+            "bus": 0.06,
+            "truck": 0.1
+          },
+          "pedPeak": 1000,
+          "bikePeak": 380
+        },
+        "E": {
+          "road": "Odengatan",
+          "adtIn": 6000,
+          "turning": {
+            "L": 0.2,
+            "S": 0.6,
+            "R": 0.2
+          },
+          "mix": {
+            "car": 0.82,
+            "bus": 0.09,
+            "truck": 0.09
+          },
+          "pedPeak": 800,
+          "bikePeak": 250
+        },
+        "W": {
+          "road": "Odengatan",
+          "adtIn": 6500,
+          "turning": {
+            "L": 0.2,
+            "S": 0.6,
+            "R": 0.2
+          },
+          "mix": {
+            "car": 0.82,
+            "bus": 0.09,
+            "truck": 0.09
+          },
+          "pedPeak": 850,
+          "bikePeak": 260
+        }
+      }
+    },
+    {
+      "id": "valhallavagen-birgerjarlsgatan",
+      "name": "Valhallavägen / Birger Jarlsgatan",
+      "lat": 59.3478,
+      "lon": 18.0705,
+      "source": "Stockholm stad traffic counts (ADT, estimated)",
+      "estimated": true,
+      "arms": {
+        "N": {
+          "road": "Birger Jarlsgatan",
+          "adtIn": 7000,
+          "turning": {
+            "L": 0.2,
+            "S": 0.6,
+            "R": 0.2
+          },
+          "mix": {
+            "car": 0.86,
+            "bus": 0.04,
+            "truck": 0.1
+          },
+          "pedPeak": 400,
+          "bikePeak": 300
+        },
+        "S": {
+          "road": "Birger Jarlsgatan",
+          "adtIn": 7500,
+          "turning": {
+            "L": 0.2,
+            "S": 0.6,
+            "R": 0.2
+          },
+          "mix": {
+            "car": 0.86,
+            "bus": 0.04,
+            "truck": 0.1
+          },
+          "pedPeak": 450,
+          "bikePeak": 320
+        },
+        "E": {
+          "road": "Valhallavägen",
+          "adtIn": 15000,
+          "turning": {
+            "L": 0.12,
+            "S": 0.75,
+            "R": 0.13
+          },
+          "mix": {
+            "car": 0.85,
+            "bus": 0.04,
+            "truck": 0.11
+          },
+          "pedPeak": 300,
+          "bikePeak": 200
+        },
+        "W": {
+          "road": "Valhallavägen",
+          "adtIn": 15500,
+          "turning": {
+            "L": 0.12,
+            "S": 0.75,
+            "R": 0.13
+          },
+          "mix": {
+            "car": 0.85,
+            "bus": 0.04,
+            "truck": 0.11
+          },
+          "pedPeak": 300,
+          "bikePeak": 200
+        }
+      }
+    },
+    {
+      "id": "hornsgatan-langholmsgatan",
+      "name": "Hornsgatan / Långholmsgatan (Hornstull)",
+      "lat": 59.3157,
+      "lon": 18.0339,
+      "source": "Stockholm stad traffic counts (ADT, estimated)",
+      "estimated": true,
+      "arms": {
+        "N": {
+          "road": "Långholmsgatan",
+          "adtIn": 17000,
+          "turning": {
+            "L": 0.15,
+            "S": 0.65,
+            "R": 0.2
+          },
+          "mix": {
+            "car": 0.83,
+            "bus": 0.03,
+            "truck": 0.14
+          },
+          "pedPeak": 500,
+          "bikePeak": 450
+        },
+        "S": {
+          "road": "Långholmsgatan",
+          "adtIn": 17500,
+          "turning": {
+            "L": 0.2,
+            "S": 0.65,
+            "R": 0.15
+          },
+          "mix": {
+            "car": 0.83,
+            "bus": 0.03,
+            "truck": 0.14
+          },
+          "pedPeak": 550,
+          "bikePeak": 400
+        },
+        "E": {
+          "road": "Hornsgatan",
+          "adtIn": 7500,
+          "turning": {
+            "L": 0.25,
+            "S": 0.55,
+            "R": 0.2
+          },
+          "mix": {
+            "car": 0.8,
+            "bus": 0.1,
+            "truck": 0.1
+          },
+          "pedPeak": 1100,
+          "bikePeak": 350
+        },
+        "W": {
+          "road": "Hornsgatan",
+          "adtIn": 6000,
+          "turning": {
+            "L": 0.2,
+            "S": 0.55,
+            "R": 0.25
+          },
+          "mix": {
+            "car": 0.8,
+            "bus": 0.1,
+            "truck": 0.1
+          },
+          "pedPeak": 900,
+          "bikePeak": 300
+        }
+      }
+    },
+    {
+      "id": "fridhemsplan",
+      "name": "Fridhemsplan",
+      "lat": 59.3326,
+      "lon": 18.0306,
+      "source": "Stockholm stad traffic counts (ADT, estimated)",
+      "estimated": true,
+      "arms": {
+        "N": {
+          "road": "Fridhemsgatan",
+          "adtIn": 6000,
+          "turning": {
+            "L": 0.2,
+            "S": 0.55,
+            "R": 0.25
+          },
+          "mix": {
+            "car": 0.84,
+            "bus": 0.07,
+            "truck": 0.09
+          },
+          "pedPeak": 700,
+          "bikePeak": 300
+        },
+        "E": {
+          "road": "Fleminggatan",
+          "adtIn": 9000,
+          "turning": {
+            "L": 0.15,
+            "S": 0.65,
+            "R": 0.2
+          },
+          "mix": {
+            "car": 0.83,
+            "bus": 0.08,
+            "truck": 0.09
+          },
+          "pedPeak": 900,
+          "bikePeak": 400
+        },
+        "S": {
+          "road": "Fridhemsgatan",
+          "adtIn": 5500,
+          "turning": {
+            "L": 0.25,
+            "S": 0.55,
+            "R": 0.2
+          },
+          "mix": {
+            "car": 0.84,
+            "bus": 0.07,
+            "truck": 0.09
+          },
+          "pedPeak": 650,
+          "bikePeak": 280
+        },
+        "W": {
+          "road": "Drottningholmsvägen",
+          "adtIn": 12000,
+          "turning": {
+            "L": 0.15,
+            "S": 0.65,
+            "R": 0.2
+          },
+          "mix": {
+            "car": 0.83,
+            "bus": 0.08,
+            "truck": 0.09
+          },
+          "pedPeak": 600,
+          "bikePeak": 450
+        }
+      }
+    },
+    {
+      "id": "roundabout-medium",
+      "name": "Medium roundabout (generic)",
+      "lat": null,
+      "lon": null,
+      "source": "synthetic generic profile",
+      "estimated": true,
+      "arms": {
+        "N": {
+          "road": "Arm N",
+          "adtIn": 5000,
+          "turning": {
+            "L": 0.25,
+            "S": 0.5,
+            "R": 0.25
+          },
+          "mix": {
+            "car": 0.85,
+            "bus": 0.05,
+            "truck": 0.1
+          },
+          "pedPeak": 150,
+          "bikePeak": 120
+        },
+        "E": {
+          "road": "Arm E",
+          "adtIn": 4500,
+          "turning": {
+            "L": 0.25,
+            "S": 0.5,
+            "R": 0.25
+          },
+          "mix": {
+            "car": 0.85,
+            "bus": 0.05,
+            "truck": 0.1
+          },
+          "pedPeak": 150,
+          "bikePeak": 120
+        },
+        "S": {
+          "road": "Arm S",
+          "adtIn": 5000,
+          "turning": {
+            "L": 0.25,
+            "S": 0.5,
+            "R": 0.25
+          },
+          "mix": {
+            "car": 0.85,
+            "bus": 0.05,
+            "truck": 0.1
+          },
+          "pedPeak": 150,
+          "bikePeak": 120
+        },
+        "W": {
+          "road": "Arm W",
+          "adtIn": 4500,
+          "turning": {
+            "L": 0.25,
+            "S": 0.5,
+            "R": 0.25
+          },
+          "mix": {
+            "car": 0.85,
+            "bus": 0.05,
+            "truck": 0.1
+          },
+          "pedPeak": 150,
+          "bikePeak": 120
+        }
+      }
+    },
+    {
+      "id": "priority-tjunction",
+      "name": "Priority T-junction (generic)",
+      "lat": null,
+      "lon": null,
+      "source": "synthetic generic profile",
+      "estimated": true,
+      "arms": {
+        "E": {
+          "road": "Major road E",
+          "adtIn": 6000,
+          "turning": {
+            "L": 0.25,
+            "S": 0.75,
+            "R": 0
+          },
+          "mix": {
+            "car": 0.85,
+            "bus": 0.05,
+            "truck": 0.1
+          },
+          "pedPeak": 100,
+          "bikePeak": 80
+        },
+        "S": {
+          "road": "Minor road S",
+          "adtIn": 2000,
+          "turning": {
+            "L": 0.5,
+            "S": 0,
+            "R": 0.5
+          },
+          "mix": {
+            "car": 0.85,
+            "bus": 0.05,
+            "truck": 0.1
+          },
+          "pedPeak": 100,
+          "bikePeak": 80
+        },
+        "W": {
+          "road": "Major road W",
+          "adtIn": 6000,
+          "turning": {
+            "L": 0,
+            "S": 0.75,
+            "R": 0.25
+          },
+          "mix": {
+            "car": 0.85,
+            "bus": 0.05,
+            "truck": 0.1
+          },
+          "pedPeak": 100,
+          "bikePeak": 80
+        }
+      }
+    }
+  ]
+}
