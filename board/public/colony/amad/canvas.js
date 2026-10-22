@@ -6,6 +6,8 @@ const LW = 3.5;                 // default lane width (overridden by layout.lane
 const BIKE_W = 0.6;             // bike lane width in lane widths (martin: 0.6 * W)
 const ARMS = ['N', 'E', 'S', 'W'];
 const DIR = { N: [0, 1], E: [1, 0], S: [0, -1], W: [-1, 0] };
+const NOMINAL = { N: 0, E: 90, S: 180, W: 270 };   // compass bearing of each label
+const angDiff = (a, b) => ((a - b + 540) % 360) - 180;
 const FRAME_KEYS = new Set(['t', 'v', 'p', 'q', 'sig']);
 
 export const CLS_COLOR = { car: '#5aa9ff', bus: '#ffb547', truck: '#b98cff', bike: '#3ddc97' };
@@ -42,6 +44,9 @@ export class Scene {
     this.onTick = null;
     this.onUnsupported = null;   // (fields: string[]) => void, called once per setFrames
     this.map = null;             // optional TileMap (map.js); when ready, it sets the metre scale
+    this.bearings = {};          // real arm bearings (compass, away from centre) known to the app (geo.js)
+    this.osmLines = null;        // OSM centrelines [{points:[[x,y]...]}] for the debug overlay
+    this.showOsm = false;
     this.hint = 'Press Run to simulate this design';
     this.w = 1; this.h = 1; this.dpr = 1;
     this._last = 0;
@@ -71,6 +76,18 @@ export class Scene {
   pause() { this.playing = false; this._dirty = true; }
   seek(t) { this.t = clamp(t, 0, this.duration); this._dirty = true; if (this.onTick) this.onTick(this.t); }
   setSpeed(s) { this.speed = s; }
+  // Real arm bearings (compass degrees, clockwise from north, away from the centre). Used to draw the arms
+  // before a run, and as a fallback warp when the engine's layout does not echo bearingDeg (engine < 0.4).
+  setBearings(b) { this.bearings = b && typeof b === 'object' ? { ...b } : {}; this._dirty = true; }
+  setOsmLines(g) { this.osmLines = Array.isArray(g) ? g : null; this._dirty = true; }
+  setShowOsm(on) { this.showOsm = !!on; this._dirty = true; }
+  // 'engine' = engine laid the arms out along bearingDeg; 'warp' = frames are cardinal, warped on the client;
+  // 'design' = no frames yet, arms drawn along known bearings; 'cardinal' = labels only.
+  get alignment() {
+    if (this._engineBearings()) return 'engine';
+    if (!this._bearingsKnown()) return 'cardinal';
+    return this.frames.length ? 'warp' : 'design';
+  }
   attachMap(map) { this.map = map; this._dirty = true; }
   get mapOn() { return !!this.map?.ready; }
   zoomBy(f) {
@@ -173,7 +190,12 @@ export class Scene {
     const box = this.layout?.box ?? maxHalf + 1;
     const R = this.layout?.roundabout?.radius ?? d.roundabout?.radius ?? d.radius ?? 15;
     const round = type === 'roundabout';
-    const stop = this.layout?.stopDist ?? (round ? R + lw * 1.2 + 6 : box + 4);
+    // engine 0.4: arms meeting at a sharp angle push the stop lines out
+    const ids = ARMS.filter((id) => arms[id]);
+    let minGap = 90;
+    ids.forEach((id, k) => { const nx = ids[(k + 1) % ids.length]; if (nx !== id) minGap = Math.min(minGap, ((this._bearing(nx) - this._bearing(id)) % 360 + 360) % 360); });
+    const sharp = box / Math.tan((Math.max(30, minGap) * Math.PI) / 360);
+    const stop = this.layout?.stopDist ?? (round ? Math.max(R + lw * 1.2 + 6, sharp + 4) : Math.max(box + 4, sharp + 4));
     const major = this.layout?.priority?.major || d.priority?.major || ['N', 'S'];
     return { type, round, R, box, stop, major, lw };
   }
@@ -220,6 +242,7 @@ export class Scene {
     const far = (Math.hypot(this.w, this.h) / s) + Math.hypot(...this.pan) + 10;
 
     // On the map the overlay is drawn to geographic scale; when zoomed far out it is too small to draw.
+    this._osm(T);
     if (s >= 0.6) {
       const ctx = this.ctx;
       ctx.save();
@@ -228,6 +251,7 @@ export class Scene {
       ctx.globalAlpha = onMap ? 0.85 : 1;
       this._markings(T, arms, g, onMap ? Math.min(far, 150) : far, sig);
       ctx.restore();
+      this._warp = fr && !this._engineBearings() && this._bearingsKnown() ? this._buildWarp(arms) : null;
       if (fr) this._agents(T, fr);
       this._signals(T, arms, g, sig);
       if (s >= 2) this._armLabels(T, arms, g, fr?.a?.q || {});
@@ -254,9 +278,64 @@ export class Scene {
     }
   }
 
+  _engineBearings() { return Array.isArray(this.layout?.arms) && this.layout.arms.some((a) => a && a.bearingDeg != null); }
+  _bearingsKnown() { return Object.entries(this.bearings).some(([id, b]) => Number.isFinite(b) && Math.abs(angDiff(b, NOMINAL[id])) >= 0.5); }
+
+  // Compass bearing the arm is drawn along.
+  _bearing(arm) {
+    if (this._engineBearings()) {
+      const l = this.layout.arms.find((a) => a.id === arm);
+      if (l && Number.isFinite(l.bearingDeg)) return l.bearingDeg;
+      if (l && Number.isFinite(l.angleDeg)) return 90 - l.angleDeg;
+      return NOMINAL[arm];
+    }
+    const b = this.bearings[arm];
+    return Number.isFinite(b) ? b : NOMINAL[arm];
+  }
+
+  _u(arm) { const b = (this._bearing(arm) * Math.PI) / 180; return [Math.sin(b), Math.cos(b)]; }
+
+  // Fallback only (engine frames at cardinal angles, real arms at known bearings): piecewise-linear polar warp.
+  // Radius is kept. Around each arm there is a plateau (the road's angular footprint at that radius) that is
+  // rotated rigidly, so lanes keep their metric offsets; between plateaus the rotation is interpolated linearly.
+  _buildWarp(arms) {
+    const knots = ARMS.map((id) => {
+      const e = 90 - NOMINAL[id];                                       // engine math angle
+      const d = arms[id] ? -angDiff(this._bearing(id), NOMINAL[id]) : 0;   // math rotation (deg), CCW positive
+      const hw = arms[id] ? Math.max(arms[id].inHW, arms[id].outHW) + arms[id].bw + 3 : 0;
+      return { e: ((e % 360) + 360) % 360, d, hw };
+    }).sort((a, b) => a.e - b.e);
+    const n = knots.length;
+    knots.forEach((k, i) => {
+      const nx = knots[(i + 1) % n], pv = knots[(i - 1 + n) % n];
+      const gapN = ((nx.e - k.e + 360) % 360) || 360, gapP = ((k.e - pv.e + 360) % 360) || 360;
+      k.wmax = 0.4 * Math.min(gapN, gapP, gapN + nx.d - k.d, gapP + k.d - pv.d);
+    });
+    if (knots.every((k) => Math.abs(k.d) < 0.01)) return null;
+    return (x, y) => {
+      const r = Math.hypot(x, y);
+      if (r < 1e-6) return [x, y];
+      const th = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+      const w = knots.map((k) => (k.hw ? Math.min(k.wmax, (Math.atan(k.hw / r) * 180) / Math.PI) : 0));
+      let rot = 0;
+      for (let i = 0; i < n; i++) {
+        const a = knots[i], b = knots[(i + 1) % n];
+        const lo = a.e - w[i];
+        let span = (b.e - a.e + 360) % 360 || 360;
+        let rel = (th - lo + 360) % 360;
+        if (rel <= 2 * w[i]) { rot = a.d; break; }                     // on arm a's plateau
+        const s0 = 2 * w[i], s1 = w[i] + span - w[(i + 1) % n];        // interpolation zone, relative to lo
+        if (rel < s1) { rot = a.d + (b.d - a.d) * ((rel - s0) / Math.max(1e-6, s1 - s0)); break; }
+      }
+      const t = ((th + rot) * Math.PI) / 180;
+      return [r * Math.cos(t), r * Math.sin(t)];
+    };
+  }
+
   // Arm frame: along = distance from centre along u (outwards), lat = offset to the inbound side (right of travel).
+  // u follows the arm's bearing; lateral offsets stay in metres along the arm's own normal.
   _af(arm) {
-    const [ux, uy] = DIR[arm];
+    const [ux, uy] = this._u(arm);
     const [rx, ry] = [-uy, ux];  // right of the inbound travel direction (-u)
     return (along, lat) => [ux * along + rx * lat, uy * along + ry * lat];
   }
@@ -274,6 +353,44 @@ export class Scene {
     this._poly(T, [f(a0, l0), f(a1, l0), f(a1, l1), f(a0, l1)], fill);
   }
 
+  // Junction surface: polygon through each arm's mouth corners (works for any arm angles).
+  _boxPoly(arms, g, extra = 0) {
+    const along = Math.max(g.box, g.stop - 3.5);
+    const pts = [];
+    for (const id of ARMS) {
+      const a = arms[id];
+      if (!a) continue;
+      const f = this._af(id);
+      // counter-clockwise order around the centre: out side (left of u) first, then in side
+      pts.push(f(along, a.inHW + a.bw + extra), f(along, -(a.outHW + a.bw + extra)));
+    }
+    pts.sort((p, q) => Math.atan2(p[1], p[0]) - Math.atan2(q[1], q[0]));
+    return pts.length >= 3 ? pts : [[-g.box, g.box], [g.box, g.box], [g.box, -g.box], [-g.box, -g.box]];
+  }
+
+  // Add a polygon to the current path with a fixed (screen-clockwise) winding, so nonzero union fills have no holes.
+  _addPath(T, pts) {
+    const { ctx } = this;
+    let area = 0;
+    pts.forEach((p, i) => { const q = pts[(i + 1) % pts.length]; area += p[0] * q[1] - q[0] * p[1]; });
+    const seq = area < 0 ? pts : pts.slice().reverse();   // always clockwise in world coordinates
+    seq.forEach(([x, y], i) => (i ? ctx.lineTo(T.X(x), T.Y(y)) : ctx.moveTo(T.X(x), T.Y(y))));
+    ctx.closePath();
+  }
+
+  _osm(T) {
+    if (!this.showOsm || !this.osmLines) return;
+    const { ctx } = this;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0,229,255,0.9)'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+    for (const w of this.osmLines) {
+      ctx.beginPath();
+      w.points.forEach(([x, y], i) => (i ? ctx.lineTo(T.X(x), T.Y(y)) : ctx.moveTo(T.X(x), T.Y(y))));
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   _ground(T, arms, g, far, onMap = false) {
     const { ctx } = this;
     const SW = 2.5;
@@ -282,8 +399,7 @@ export class Scene {
     if (onMap) { /* no sidewalk */ } else if (g.round) {
       ctx.fillStyle = C.walk; ctx.beginPath(); ctx.arc(T.X(0), T.Y(0), (g.R + g.lw * 1.9 + SW) * T.s, 0, Math.PI * 2); ctx.fill();
     } else {
-      const b = g.box + SW;
-      this._poly(T, [[-b, b], [b, b], [b, -b], [-b, -b]], C.walk);
+      this._poly(T, this._boxPoly(arms, g, SW), C.walk);
     }
     if (onMap) {
       // one union path (consistent clockwise winding) so the translucent surface does not darken where pieces overlap
@@ -291,11 +407,13 @@ export class Scene {
       for (const a of Object.values(arms)) {
         const f = this._af(a.id);
         const l0 = -(a.outHW + a.bw), l1 = a.inHW + a.bw;
-        [f(0, l1), f(far, l1), f(far, l0), f(0, l0)].forEach(([x, y], i) => (i ? ctx.lineTo(T.X(x), T.Y(y)) : ctx.moveTo(T.X(x), T.Y(y))));
-        ctx.closePath();
+        this._addPath(T, [f(0, l1), f(far, l1), f(far, l0), f(0, l0)]);
       }
-      if (g.round) { ctx.moveTo(T.X(g.R + g.lw * 1.9), T.Y(0)); ctx.arc(T.X(0), T.Y(0), (g.R + g.lw * 1.9) * T.s, 0, Math.PI * 2); }
-      else { const q = g.box; ctx.moveTo(T.X(-q), T.Y(q)); ctx.lineTo(T.X(q), T.Y(q)); ctx.lineTo(T.X(q), T.Y(-q)); ctx.lineTo(T.X(-q), T.Y(-q)); ctx.closePath(); }
+      if (g.round) {
+        // a circle via polygon so its winding matches the arms
+        const rr = g.R + g.lw * 1.9;
+        this._addPath(T, Array.from({ length: 64 }, (_, i) => [rr * Math.cos((i * Math.PI) / 32), rr * Math.sin((i * Math.PI) / 32)]));
+      } else this._addPath(T, this._boxPoly(arms, g));
       ctx.fillStyle = C.asphalt; ctx.fill('nonzero');
       return;
     }
@@ -304,8 +422,7 @@ export class Scene {
     if (g.round) {
       ctx.fillStyle = C.asphalt; ctx.beginPath(); ctx.arc(T.X(0), T.Y(0), (g.R + g.lw * 1.9) * T.s, 0, Math.PI * 2); ctx.fill();
     } else {
-      const b = g.box;
-      this._poly(T, [[-b, b], [b, b], [b, -b], [-b, -b]], C.asphalt);
+      this._poly(T, this._boxPoly(arms, g), C.asphalt);
     }
     // bike lanes (coloured strips on the outer edge of each approach)
     const from = g.round ? g.R + g.lw * 1.9 : g.box;
@@ -391,7 +508,7 @@ export class Scene {
   _arrow(T, [wx, wy], arm, turns) {
     const { ctx } = this;
     const s = T.s;
-    const [ux, uy] = DIR[arm];
+    const [ux, uy] = this._u(arm);
     const dx = -ux, dy = -uy;                  // travel direction (world)
     const theta = Math.atan2(dx, dy);          // screen rotation that maps local up to travel
     const k = s * 0.55;                        // arrow unit in px (~0.55 m)
@@ -465,11 +582,12 @@ export class Scene {
     for (const v of sorted) {
       if (!Array.isArray(v) || v.length < 4) continue;
       const n = next.get(v[0]);
-      const x = n ? lerp(v[2], n[2], k) : v[2];
-      const y = n ? lerp(v[3], n[3], k) : v[3];
-      const hd = n && v[4] != null && n[4] != null ? lerpDeg(v[4], n[4], k) : (v[4] || 0);
+      let x = n ? lerp(v[2], n[2], k) : v[2];
+      let y = n ? lerp(v[3], n[3], k) : v[3];
+      let hd = n && v[4] != null && n[4] != null ? lerpDeg(v[4], n[4], k) : (v[4] || 0);
       const sp = n && v[5] != null && n[5] != null ? lerp(v[5], n[5], k) : v[5];
       const cls = v[1];
+      if (this._warp) [x, y, hd] = this._warpPose(x, y, hd);
       const [L, W] = CLS_SIZE[cls] || CLS_SIZE.car;
       const lp = Math.max(cls === 'bike' ? 5 : 8, L * s), wp = Math.max(cls === 'bike' ? 2.5 : 4, W * s);
       ctx.save();
@@ -493,11 +611,20 @@ export class Scene {
     const pr = Math.max(2.4, 0.45 * s);
     for (const p of Array.isArray(a.p) ? a.p : []) {
       const n = nextP.get(p[0]);
-      const x = n ? lerp(p[1], n[1], k) : p[1];
-      const y = n ? lerp(p[2], n[2], k) : p[2];
+      let x = n ? lerp(p[1], n[1], k) : p[1];
+      let y = n ? lerp(p[2], n[2], k) : p[2];
+      if (this._warp) [x, y] = this._warp(x, y);
       ctx.fillStyle = PED_COLOR; ctx.strokeStyle = '#0b0f14'; ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.arc(T.X(x), T.Y(y), pr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     }
+  }
+
+  // Warp a vehicle pose: transform p and p + 0.5 m along the heading, take the direction of the difference.
+  _warpPose(x, y, hd) {
+    const h = (hd * Math.PI) / 180;
+    const [px, py] = this._warp(x, y);
+    const [qx, qy] = this._warp(x + 0.5 * Math.cos(h), y + 0.5 * Math.sin(h));
+    return [px, py, (Math.atan2(qy - py, qx - px) * 180) / Math.PI];
   }
 
   _rr(x, y, w, h, r) {

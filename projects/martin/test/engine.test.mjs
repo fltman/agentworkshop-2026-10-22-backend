@@ -112,3 +112,12 @@ test('arm bearings rotate the geometry and keep turns working', () => {
   const bad = engine.simulate({ ...signal, arms: signal.arms.map((a) => (a.id === 'N' ? { ...a, bearingDeg: 100 } : a)) }, ex.demand);
   assert.ok(bad.errors.some((e) => e.includes('bearingDeg')));
 });
+
+test('mean delay counts vehicles that never got out', () => {
+  const arms = { N: { vehPerHour: 600, turning: { S: 1 } }, S: { vehPerHour: 600, turning: { S: 1 } }, E: { vehPerHour: 1500, turning: { S: 1 } }, W: { vehPerHour: 1500, turning: { S: 1 } } };
+  const prio = { ...signal, type: 'priority', priority: { major: ['E', 'W'] } };
+  const d = engine.simulate(prio, { durationSec: 600, seed: 3, arms }).summary.delay;
+  assert.ok(d.unservedShare > 0.05, JSON.stringify(d));
+  assert.ok(d.meanSec > d.exitedMeanSec, JSON.stringify(d));
+  assert.ok(d.perArm.N.meanSec > 3 * d.perArm.E.meanSec, JSON.stringify(d.perArm));
+});
