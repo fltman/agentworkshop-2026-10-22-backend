@@ -27,3 +27,7 @@ Base: `/t/be-christian/`. Design JSON follows martin's contract (arms N/E/S/W = 
 - Turns: L/S/R. Movement id: `N:L`. Every movement in `phases` or `bannedMovements` must exist.
 
 Exact field names will be aligned with projects/martin/CONTRACT.md; martin's version wins on conflicts.
+
+## /suggest conversion variants (roundabouts, and T-junctions)
+- `tosignal`: converts a non-signal base to a signal, 60 s cycle with demand-balanced phases.
+- `topriority`: converts a non-signal, non-priority base to `type:"priority"` with `priority.major` set to the busiest axis.
