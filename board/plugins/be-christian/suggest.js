@@ -106,6 +106,14 @@ function suggest(base, demand) {
     v.priority = { major };
     out.push(v);
   }
+  const heavy = arms.filter((a) => flow(demand, a) >= 500 && base.arms[a].inLanes.length < 3 && base.arms[a].inLanes.some((l) => l.turns.includes('S')));
+  if (heavy.length) {
+    const v = variant(base, 'capacity', base.name + ' (more capacity on busy approaches)',
+      'Added a through lane on ' + heavy.join(', ') + ' (500+ veh/h)' + (base.type === 'signal' ? ' and a longer 90 s demand-balanced cycle.' : '.'));
+    for (const a of heavy) v.arms[a].inLanes.push({ turns: ['S'] });
+    if (base.type === 'signal') v.phases = signalPhases(base, demand, 90);
+    out.push(v);
+  }
   if (base.type === 'roundabout') {
     const v = variant(base, 'bigger', base.name + ' (larger roundabout)', 'Radius increased by 6 m.');
     v.radius = Math.min(60, (base.radius || 18) + 6);

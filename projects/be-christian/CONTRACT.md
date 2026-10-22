@@ -35,3 +35,6 @@ Exact field names will be aligned with projects/martin/CONTRACT.md; martin's ver
 ## GET /trafficflow (Trafikverket TrafficFlow)
 `?design=ID` or `?lat=&lon=`, optional `&radius=` in metres (100-2000, default 500). Returns `{source, center, radiusM, sites:[{siteId, wgs84, measurements:[{time, vehiclesPerHour, avgSpeedKmh, vehicleType, lane}]}]}`.
 Cached 5 min. Only state-road measurement sites exist, so city streets may return no sites. 503 when the server has no key. The key is never returned.
+
+## /suggest capacity variant
+`capacity`: for any base with an approach at 500+ veh/h and under 3 lanes, adds a through lane there (signals also get a 90 s demand-balanced cycle). Only offered when such an approach exists. Sveavagen at 08:00: 65.8 s vs 91.7 s base.
