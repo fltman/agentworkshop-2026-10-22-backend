@@ -21,6 +21,7 @@ Base: `/t/be-christian/`. Design JSON follows martin's contract (arms N/E/S/W = 
  "radius":null,"bannedMovements":["N:L"]}
 ```
 
+- Optional `roundabout: {radius, lanes}` (lanes 1|2, 2 needs radius >= 12) follows martin's engine 0.2.0; top-level `radius` stays for compatibility.
 - type: `signal` | `roundabout` | `priority`; `radius` (m) only for roundabout; `phases` only for signal.
 - Turns: L/S/R. Movement id: `N:L`. Every movement in `phases` or `bannedMovements` must exist.
 
