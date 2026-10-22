@@ -155,3 +155,12 @@ test('POST overrides apply to every schedule step', async () => {
   for (const step of json.schedule) assert.deepEqual(step.arms.N.turning, { L: 0, S: 1, R: 0 });
   assert.deepEqual(json.arms.N.turning, { L: 0, S: 1, R: 0 });
 });
+
+test('intersection detail reports per-arm source, measured arms carry their segment', async () => {
+  const { json } = await call('GET', '/intersections/fridhemsplan');
+  assert.equal(json.arms.N.source, 'measured');
+  assert.equal(json.arms.N.measured.street, 'Fridhemsgatan');
+  assert.equal(json.arms.E.source, 'estimated');
+  assert.equal(json.arms.E.measured, undefined);
+  assert.equal((await call('GET', '/intersections/roundabout-medium')).json.arms.N.source, 'estimated');
+});

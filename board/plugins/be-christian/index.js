@@ -4,6 +4,10 @@ const path = require('path');
 const PRESETS = require('./presets');
 const { suggest } = require('./suggest');
 const { fromOsm } = require('./osm');
+const { flowNear } = require('./trafikverket');
+
+const BEARING_RETRY_MS = 5 * 60 * 1000;
+let lastBearingFail = 0;
 
 const BEARING_RETRY_MS = 5 * 60 * 1000;
 let lastBearingFail = 0;
@@ -155,6 +159,21 @@ module.exports = {
         if (out.error) return send(out.status || 502, { error: out.error });
         const errors = validate(out.design);
         return send(200, { design: out.design, valid: !errors.length, errors });
+      }
+      if (req.method === 'GET' && p === '/trafficflow') {
+        const url = new URL(req.url, 'http://x');
+        let lat = parseFloat(url.searchParams.get('lat'));
+        let lon = parseFloat(url.searchParams.get('lon'));
+        const ref = url.searchParams.get('design');
+        if (ref) {
+          const d = this.all().find((x) => x.id === ref);
+          if (!d || !d.location) return send(404, { error: 'design has no location' });
+          lat = d.location.lat; lon = d.location.lon;
+        }
+        if (!(lat >= 55 && lat <= 70 && lon >= 10 && lon <= 25)) return send(400, { error: 'lat 55-70 and lon 10-25 (Sweden) required, or design=<id>' });
+        const radius = Math.min(2000, Math.max(100, parseInt(url.searchParams.get('radius'), 10) || 500));
+        const out = await flowNear(lat, lon, radius);
+        return send(out.status, out.body || { error: out.error });
       }
       const m = p.match(/^\/designs\/([a-z0-9-]+)$/);
       if (req.method === 'GET' && m) {
