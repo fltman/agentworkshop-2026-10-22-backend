@@ -12,7 +12,7 @@ function percentile(sorted, p) {
 }
 
 // events: martin event list, frames: optional per-second frames (for queues)
-function computeMetrics(events, frames, durationSec) {
+function computeMetrics(events, frames, durationSec, summary) {
   events = events || [];
   const exits = events.filter((e) => e.type === 'exit');
   const delays = exits.map((e) => Number(e.delaySec) || 0).sort((a, b) => a - b);
@@ -35,6 +35,7 @@ function computeMetrics(events, frames, durationSec) {
   const avgByArm = {};
   for (const arm of Object.keys(sumByArm)) avgByArm[arm] = round(sumByArm[arm] / n);
 
+  const sm = summary || {};
   let dur = Number(durationSec) || 0;
   if (!dur) dur = events.reduce((m, e) => Math.max(m, e.t || 0), 0);
 
@@ -42,9 +43,13 @@ function computeMetrics(events, frames, durationSec) {
     durationSec: dur,
     delay: {
       avgSec: round(exits.length ? totalDelay / exits.length : 0),
+      // meanSec counts unserved vehicles (engine 0.5+); falls back to the exited mean
+      meanSec: round(sm.delay && sm.delay.meanSec != null ? sm.delay.meanSec : exits.length ? totalDelay / exits.length : 0),
+      unservedShare: sm.delay && sm.delay.unservedShare != null ? sm.delay.unservedShare : null,
       p95Sec: round(percentile(delays, 0.95)),
       totalSec: round(totalDelay),
     },
+    vehicles: sm.vehicles || null,
     queue: { maxByArm, avgByArm },
     throughput: {
       vehicles: exits.length,
@@ -67,7 +72,7 @@ function computeMetrics(events, frames, durationSec) {
 
 // Lower is better, except throughput (negated).
 const METRIC_KEYS = {
-  delay: (m) => m.delay.avgSec,
+  delay: (m) => m.delay.meanSec,
   queue: (m) => Math.max(0, ...Object.values(m.queue.maxByArm)),
   throughput: (m) => -m.throughput.vehicles,
   stopped: (m) => m.stopped.vehicles,

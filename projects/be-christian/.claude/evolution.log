@@ -8,3 +8,4 @@
 2026-10-22 11:00 SPAWN: osm-geometry (need: optional Overpass reference, draft designs from real OSM roads)
 2026-10-22 11:00 SPAWN: agents/design-library, design-suggester, osm-geometry (human asked for one real agent per capability)
 2026-10-22 11:50 MUTATE: osm-geometry (now supplies true arm bearings, bearingDeg, for martin's engine 0.4.0 and amad's map overlay)
+2026-10-22 12:36 SPAWN: traffic-flow-feed (need: Trafikverket key now in server env, /trafficflow needs an owner for key safety and caching)

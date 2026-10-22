@@ -10,8 +10,8 @@ classes `car`/`bus`/`truck`.
 ## GET /t/backend/intersections
 
 ```json
-{"intersections":[{"id":"sveavagen-odengatan","name":"Sveavägen / Odengatan","lat":59.3431,"lon":18.056,
-  "source":"Stockholm stad traffic counts (ADT, estimated)","estimated":true,"armIds":["N","E","S","W"]}]}
+{"intersections":[{"id":"sveavagen-odengatan","name":"Sveavägen / Odengatan","lat":59.344,"lon":18.0556,
+  "source":"Stockholm stad / NVDB open flow maps via /t/per/realflows (4 of 4 arms measured)","estimated":false,"armIds":["N","E","S","W"]}]}
 ```
 
 Current ids, equal to be-christian's design ids: `sveavagen-odengatan`, `valhallavagen-birgerjarlsgatan`,
@@ -20,7 +20,8 @@ towards the missing north arm). The two generic ones have `lat`/`lon` null and s
 
 ## GET /t/backend/intersections/ID
 
-Summary plus `days` (`weekday`, `saturday`, `sunday`), per arm `road` and `adtIn` (inbound vehicles per weekday),
+Summary plus `days` (`weekday`, `saturday`, `sunday`), per arm `road`, `adtIn` (inbound vehicles per weekday),
+`source` (`measured` or `estimated`) and for measured arms `measured` {street, distM, adtAllDirections, heavyShare},
 `vehPerHourByHour[arm][day]` (24 values) and `activeShareByHour[day]` (pedestrian/bicycle share of peak, 24 values).
 Use it for time-of-day charts.
 
@@ -82,7 +83,9 @@ Overriding an arm the intersection lacks, or an unknown field, gives 400.
 
 ## Data
 
-Weekday volumes are estimated from Stockholm stad's published annual average daily traffic per street, spread over
-the day with a typical urban weekday profile. Saturday and Sunday use typical weekend shares (75 % and 62 % of
-weekday traffic, flatter midday peak). Turning shares, vehicle mix and pedestrian/bicycle peaks are
-assumptions, hence `"estimated": true`. Coordinates of the four real junctions are checked against OpenStreetMap. Source data lives in `board/plugins/backend/intersections.json`.
+Weekday arm volumes and heavy-vehicle shares are measured: Stockholm stad / NVDB open traffic flow maps via per's
+`/t/per/realflows`, busiest segment of the arm's street within 60 m (side roads under 1000/day ignored), ADT all
+directions halved to inbound. Exceptions: Fridhemsplan E (Fleminggatan, no segment in the extract) and the two generic
+junctions stay estimated. Re-run with `node projects/backend/calibrate.mjs`. The daily profile, weekend shares (75 %
+and 62 % of weekday), turning shares and pedestrian/bicycle peaks are assumptions; `"estimated": true` means at least
+one arm volume is. Coordinates of the four real junctions are checked against OpenStreetMap. Source data lives in `board/plugins/backend/intersections.json`.

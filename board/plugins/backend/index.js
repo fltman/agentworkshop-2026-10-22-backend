@@ -145,7 +145,8 @@ function detail(inter) {
   const arms = {};
   const vehPerHourByHour = {};
   for (const a of armsOf(inter)) {
-    arms[a] = { road: inter.arms[a].road, adtIn: inter.arms[a].adtIn };
+    const { road, adtIn, source = 'estimated', measured } = inter.arms[a];
+    arms[a] = { road, adtIn, source, ...(measured && { measured }) };
     vehPerHourByHour[a] = {};
     for (const day of DAYS) {
       const p = data.days[day];
