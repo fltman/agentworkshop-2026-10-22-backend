@@ -3,6 +3,21 @@ const fs = require('fs');
 const path = require('path');
 const PRESETS = require('./presets');
 const { suggest } = require('./suggest');
+const { fromOsm } = require('./osm');
+
+async function postJson(port, urlPath, body) {
+  const res = await fetch('http://127.0.0.1:' + port + urlPath, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(90000),
+  });
+  return { status: res.status, json: await res.json() };
+}
+
+// Lower is better: mean delay, with unserved vehicles weighted as heavy delay.
+function score(summary) {
+  const v = summary.vehicles || {};
+  const unserved = (v.inNetwork || 0) + (v.backlog || 0);
+  return (summary.delay && summary.delay.meanSec || 0) + 120 * (v.generated ? unserved / v.generated : 0);
+}
 
 const ARMS = ['N', 'E', 'S', 'W'];
 const TURNS = ['L', 'S', 'R'];
@@ -78,10 +93,33 @@ module.exports = {
           .map((d) => ({ id: d.id, name: d.name, origin: d.origin, type: d.type, location: d.location || null }));
         return send(200, { designs: list });
       }
+      if (req.method === 'GET' && p === '/osm') {
+        const url = new URL(req.url, 'http://x');
+        let lat = parseFloat(url.searchParams.get('lat'));
+        let lon = parseFloat(url.searchParams.get('lon'));
+        const ref = url.searchParams.get('design');
+        if (ref) {
+          const d = this.all().find((x) => x.id === ref);
+          if (!d || !d.location) return send(404, { error: 'design has no location' });
+          lat = d.location.lat; lon = d.location.lon;
+        }
+        if (!(lat >= 55 && lat <= 70 && lon >= 10 && lon <= 25)) return send(400, { error: 'lat 55-70 and lon 10-25 (Sweden) required, or design=<id>' });
+        const out = await fromOsm(lat, lon);
+        if (out.error) return send(out.status || 502, { error: out.error });
+        const errors = validate(out.design);
+        return send(200, { design: out.design, valid: !errors.length, errors });
+      }
       const m = p.match(/^\/designs\/([a-z0-9-]+)$/);
       if (req.method === 'GET' && m) {
         const d = this.all().find((x) => x.id === m[1]);
         return d ? send(200, d) : send(404, { error: 'not found' });
+      }
+      if (req.method === 'DELETE' && m) {
+        const file = path.join(this.dir, m[1] + '.json');
+        if (PRESETS.some((x) => x.id === m[1])) return send(403, { error: 'existing designs cannot be deleted' });
+        if (!fs.existsSync(file)) return send(404, { error: 'not found' });
+        fs.unlinkSync(file);
+        return send(200, { deleted: m[1] });
       }
       if (req.method === 'POST' && (p === '/designs' || p === '/validate' || p === '/suggest')) {
         let body = '';
@@ -99,6 +137,15 @@ module.exports = {
           const berr = validate(base);
           if (berr.length) return send(400, { ok: false, errors: berr });
           const suggestions = suggest(base, d.demand).filter((s) => !validate(s).length);
+          if (d.evaluate) {
+            const dem = Object.assign({}, d.demand);
+            dem.durationSec = Math.min(Number(dem.durationSec) || 300, 600);
+            const r = await postJson(Number(process.env.PORT || 8180), '/t/martin/compare', { designs: [base].concat(suggestions), demand: dem });
+            if (r.status !== 200 || !Array.isArray(r.json.results)) return send(502, { error: 'simulation engine failed', details: r.json });
+            const ranking = r.json.results.map((x) => ({ designId: x.design.id, runId: x.runId, score: Math.round(score(x.summary) * 10) / 10, delayMeanSec: x.summary.delay.meanSec, throughputVehPerHour: x.summary.throughputVehPerHour, backlog: x.summary.vehicles.backlog, co2Kg: x.summary.emissions && x.summary.emissions.co2Kg }))
+              .sort((a, b) => a.score - b.score);
+            return send(200, { base: base.id || null, suggestions, ranking, demand: r.json.demand });
+          }
           return send(200, { base: base.id || null, suggestions });
         }
         const errors = validate(d);
