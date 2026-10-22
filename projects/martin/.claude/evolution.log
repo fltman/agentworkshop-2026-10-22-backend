@@ -8,3 +8,5 @@
 2026-10-22 11:05 MUTATE: sim-api gains a live chain check (cross-module integration came up three times; chain verified live)
 2026-10-22 11:05 ENERGY: signal-control 90, sim-api 80, sim-calibration 80 (roundabout yield + live chain work)
 2026-10-22 11:08 SPAWN: agents traffic-microsim, signal-control, sim-api, sim-calibration (one invocable subagent per capability, genome stays in capabilities/)
+2026-10-22 11:23 ENERGY: traffic-microsim 95, sim-calibration 85 (two-lane roundabout, PR #20; overlap measurement rejected a worse cross-lane leader rule)
+2026-10-22 11:23 HOLD: traffic-microsim above split threshold, not split yet (ring and car-following still change together)

@@ -3,7 +3,7 @@ name: traffic-microsim
 type: capability
 domain: backend
 tools: Read, Write, Edit, Bash
-energy: 90
+energy: 95
 spawned: 2026-10-22
 can-merge-with: [signal-control]
 ---
