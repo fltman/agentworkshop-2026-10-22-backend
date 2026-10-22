@@ -66,3 +66,16 @@ test('a banned turn gets no traffic', () => {
   assert.ok(!r.events.some((e) => e.movement === 'N:L'));
   assert.ok(r.events.some((e) => e.movement === 'N:S'));
 });
+
+test('single-lane roundabout carries moderate four-way traffic without collisions', () => {
+  const arms = Object.fromEntries(['N', 'E', 'S', 'W'].map((id) => [id, { vehPerHour: 370, turning: { L: 0.25, S: 0.5, R: 0.25 }, mix: { car: 1 }, pedPerHour: 100, bikePerHour: 0 }]));
+  const r = engine.simulate(roundabout, { durationSec: 900, seed: 42, arms });
+  assert.ok(r.summary.vehicles.exited > 0.85 * r.summary.vehicles.generated, JSON.stringify(r.summary.vehicles));
+  let overlaps = 0;
+  for (const f of r.frames) {
+    for (let i = 0; i < f.v.length; i++) for (let j = i + 1; j < f.v.length; j++) {
+      if (Math.hypot(f.v[i][2] - f.v[j][2], f.v[i][3] - f.v[j][3]) < 1.5) overlaps++;
+    }
+  }
+  assert.ok(overlaps < 20, `vehicles overlapped in ${overlaps} frame pairs`);
+});
