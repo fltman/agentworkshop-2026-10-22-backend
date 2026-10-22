@@ -87,7 +87,7 @@ are normalised, so they do not have to sum to exactly 1.
 |---|---|---|---|
 | GET | `/t/martin/health` | | `{ ok, version }` |
 | GET | `/t/martin/examples` | | `{ designs: [...], demand }` examples ready to POST |
-| POST | `/t/martin/run` | `{ design, demand, options? }` | `{ runId, design: {id,name,origin,type}, summary, warnings, layout, frameCount, eventCount }` |
+| POST | `/t/martin/run` | `{ design, demand, options? }` | `{ runId, design, demand, summary, warnings, layout, frameCount, eventCount }`. `design` and `demand` echo the input (defaults for `origin`, `durationSec`, `seed` filled in) |
 | GET | `/t/martin/runs` | | the last runs, newest first: `[{ runId, designId, name, origin, createdAt, summary }]` |
 | GET | `/t/martin/runs/<runId>` | | same as the POST /run answer |
 | GET | `/t/martin/runs/<runId>/frames` | `?from=<sec>&to=<sec>` | `{ frames: [...] }` (max 600 frames per call) |

@@ -38,7 +38,7 @@ function readJson(req) {
 
 function runPublic(r) {
   return {
-    runId: r.runId, createdAt: r.createdAt, design: r.design, summary: r.summary, warnings: r.warnings, layout: r.layout,
+    runId: r.runId, createdAt: r.createdAt, design: r.design, demand: r.demand, summary: r.summary, warnings: r.warnings, layout: r.layout,
     frameCount: r.frames.length, eventCount: r.events.length,
   };
 }
@@ -47,7 +47,11 @@ function doRun(design, demand, options) {
   const out = engine.simulate(design, demand, options || {});
   if (out.errors) return { errors: out.errors };
   const runId = `r${Date.now().toString(36)}${(++runCounter).toString(36)}`;
-  const r = { runId, createdAt: new Date().toISOString(), ...out };
+  // Echo the full input design and demand (with defaults filled in) so consumers can check identical demand.
+  const fullDesign = { ...design, ...out.design };
+  const d = demand || {};
+  const fullDemand = { ...d, durationSec: Number(d.durationSec) || 900, seed: d.seed == null ? 1 : Number(d.seed) | 0 };
+  const r = { runId, createdAt: new Date().toISOString(), ...out, design: fullDesign, demand: fullDemand };
   runs.set(runId, r);
   while (runs.size > MAX_RUNS) runs.delete(runs.keys().next().value);
   return { run: r };
@@ -92,7 +96,7 @@ module.exports = {
       for (let i = 0; i < designs.length; i++) {
         const { run, errors } = doRun(designs[i], body.demand, body.options);
         if (errors) { send(res, 400, { error: 'invalid input', details: errors.map((e) => `designs[${i}]: ${e}`) }); return true; }
-        results.push({ runId: run.runId, design: run.design, summary: run.summary });
+        results.push({ runId: run.runId, design: run.design, demand: run.demand, summary: run.summary });
       }
       send(res, 200, { demand: body.demand, results });
       return true;
