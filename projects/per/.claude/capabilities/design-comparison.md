@@ -4,7 +4,7 @@ type: capability
 domain: backend
 tools: Read, Write, Edit, Bash
 model: sonnet
-energy: 60
+energy: 55
 spawned: 2026-10-22
 can-merge-with: [metrics-calculation]
 ---
