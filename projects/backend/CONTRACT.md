@@ -34,6 +34,7 @@ Use it for time-of-day charts.
 | `durationSec` | 900 | integer 60–7200 |
 | `seed` | 42 | integer ≥ 0 |
 | `scale` | 1 | 0–5, multiplies vehicle, pedestrian and bicycle volumes |
+| `varying` | `0` | `1`/`true` adds `schedule` (see below) |
 
 Example: `GET /t/backend/demand?intersection=sveavagen-odengatan&hour=17&durationSec=600&seed=7`
 
@@ -48,9 +49,20 @@ Example: `GET /t/backend/demand?intersection=sveavagen-odengatan&hour=17&duratio
 Only the arms the intersection has are included. The body can be passed unchanged as `demand` to `POST /t/martin/run`.
 UIs that let users tweak volumes, turning or mix can use the POST below; the same `seed` keeps comparisons identical.
 
+### Time-varying demand (`varying=1`)
+
+For runs longer than an hour. The top-level `arms` stay the first hour, so engines that ignore `schedule` work
+unchanged. `schedule` has one step per started hour of `durationSec`, wrapping past midnight within the same `day`:
+
+```json
+{"durationSec":7200,"seed":42,"arms":{...},
+ "schedule":[{"atSec":0,"hour":7,"arms":{...}},{"atSec":3600,"hour":8,"arms":{...}}]}
+```
+
 ## POST /t/backend/demand
 
-Same parameters as a JSON body, plus optional `overrides` per arm, for UIs where users change volume, turning, mix
+Same parameters as a JSON body (`varying` as a boolean), plus optional `overrides` per arm, applied to the top-level
+arms and to every `schedule` step, for UIs where users change volume, turning, mix
 or pedestrian/bicycle demand. Every field is optional. `turning` and `mix` are normalised to sum to 1, and keys that
 are left out become 0. The answer has the same demand shape as the GET.
 
@@ -73,4 +85,4 @@ Overriding an arm the intersection lacks, or an unknown field, gives 400.
 Weekday volumes are estimated from Stockholm stad's published annual average daily traffic per street, spread over
 the day with a typical urban weekday profile. Saturday and Sunday use typical weekend shares (75 % and 62 % of
 weekday traffic, flatter midday peak). Turning shares, vehicle mix and pedestrian/bicycle peaks are
-assumptions, hence `"estimated": true`. Source data lives in `board/plugins/backend/intersections.json`.
+assumptions, hence `"estimated": true`. Coordinates of the four real junctions are checked against OpenStreetMap. Source data lives in `board/plugins/backend/intersections.json`.

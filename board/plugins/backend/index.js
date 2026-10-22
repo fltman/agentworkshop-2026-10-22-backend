@@ -28,6 +28,12 @@ function num(value, key, def, min, max, int) {
   return v;
 }
 
+function flag(value, key) {
+  if (value === undefined || value === null || value === '' || value === false || value === '0' || value === 'false') return false;
+  if (value === true || value === '1' || value === 'true') return true;
+  throw new BadInput(`${key} must be true or false`);
+}
+
 function options(src) {
   const inter = byId.get(src.intersection);
   if (!inter) throw new BadInput('intersection must be one of: ' + [...byId.keys()].join(', '));
@@ -40,6 +46,7 @@ function options(src) {
     durationSec: num(src.durationSec, 'durationSec', 900, 60, 7200, true),
     seed: num(src.seed, 'seed', 42, 0, 2 ** 31 - 1, true),
     scale: num(src.scale, 'scale', 1, 0, 5, false),
+    varying: flag(src.varying, 'varying'),
   };
 }
 
@@ -54,10 +61,21 @@ function armDemand(arm, profile, hour, scale) {
   };
 }
 
-function demand({ inter, day, hour, durationSec, seed, scale }) {
+function armsAt(inter, day, hour, scale) {
   const arms = {};
   for (const a of armsOf(inter)) arms[a] = armDemand(inter.arms[a], data.days[day], hour, scale);
-  return { durationSec, seed, arms };
+  return arms;
+}
+
+function demand({ inter, day, hour, durationSec, seed, scale, varying }) {
+  const d = { durationSec, seed, arms: armsAt(inter, day, hour, scale) };
+  if (varying) {
+    d.schedule = [];
+    for (let k = 0; k * 3600 < durationSec; k++) {
+      d.schedule.push({ atSec: k * 3600, hour: (hour + k) % 24, arms: armsAt(inter, day, (hour + k) % 24, scale) });
+    }
+  }
+  return d;
 }
 
 function shares(obj, keys, path) {
@@ -81,9 +99,15 @@ const ARM_FIELDS = ['vehPerHour', 'turning', 'mix', 'pedPerHour', 'bikePerHour']
 function applyOverrides(d, overrides) {
   if (overrides === undefined || overrides === null) return d;
   if (typeof overrides !== 'object' || Array.isArray(overrides)) throw new BadInput('overrides must be an object of arms');
+  overrideArms(d.arms, overrides);
+  for (const step of d.schedule || []) overrideArms(step.arms, overrides);
+  return d;
+}
+
+function overrideArms(arms, overrides) {
   for (const [a, o] of Object.entries(overrides)) {
-    const arm = d.arms[a];
-    if (!arm) throw new BadInput(`overrides.${a}: this intersection has arms ${Object.keys(d.arms).join(', ')}`);
+    const arm = arms[a];
+    if (!arm) throw new BadInput(`overrides.${a}: this intersection has arms ${Object.keys(arms).join(', ')}`);
     if (typeof o !== 'object' || o === null || Array.isArray(o)) throw new BadInput(`overrides.${a} must be an object`);
     for (const k of Object.keys(o)) {
       if (!ARM_FIELDS.includes(k)) throw new BadInput(`overrides.${a}.${k} is not allowed, use ${ARM_FIELDS.join(', ')}`);
@@ -94,7 +118,6 @@ function applyOverrides(d, overrides) {
     if (o.turning !== undefined) arm.turning = shares(o.turning, TURNS, `overrides.${a}.turning`);
     if (o.mix !== undefined) arm.mix = shares(o.mix, CLASSES, `overrides.${a}.mix`);
   }
-  return d;
 }
 
 function readJson(req) {
@@ -141,8 +164,8 @@ async function route(req, res, path, params) {
       endpoints: [
         'GET /t/backend/intersections',
         'GET /t/backend/intersections/ID',
-        'GET /t/backend/demand?intersection=ID&day=weekday&hour=8&durationSec=900&seed=42&scale=1',
-        'POST /t/backend/demand {intersection, day, hour, durationSec, seed, scale, overrides}',
+        'GET /t/backend/demand?intersection=ID&day=weekday&hour=8&durationSec=900&seed=42&scale=1&varying=0',
+        'POST /t/backend/demand {intersection, day, hour, durationSec, seed, scale, varying, overrides}',
       ],
       contract: 'projects/backend/CONTRACT.md',
     });
