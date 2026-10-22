@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const PRESETS = require('./presets');
 const { suggest } = require('./suggest');
+const { fromOsm } = require('./osm');
 
 async function postJson(port, urlPath, body) {
   const res = await fetch('http://127.0.0.1:' + port + urlPath, {
@@ -91,6 +92,22 @@ module.exports = {
         const list = this.all().filter((d) => !origin || d.origin === origin)
           .map((d) => ({ id: d.id, name: d.name, origin: d.origin, type: d.type, location: d.location || null }));
         return send(200, { designs: list });
+      }
+      if (req.method === 'GET' && p === '/osm') {
+        const url = new URL(req.url, 'http://x');
+        let lat = parseFloat(url.searchParams.get('lat'));
+        let lon = parseFloat(url.searchParams.get('lon'));
+        const ref = url.searchParams.get('design');
+        if (ref) {
+          const d = this.all().find((x) => x.id === ref);
+          if (!d || !d.location) return send(404, { error: 'design has no location' });
+          lat = d.location.lat; lon = d.location.lon;
+        }
+        if (!(lat >= 55 && lat <= 70 && lon >= 10 && lon <= 25)) return send(400, { error: 'lat 55-70 and lon 10-25 (Sweden) required, or design=<id>' });
+        const out = await fromOsm(lat, lon);
+        if (out.error) return send(out.status || 502, { error: out.error });
+        const errors = validate(out.design);
+        return send(200, { design: out.design, valid: !errors.length, errors });
       }
       const m = p.match(/^\/designs\/([a-z0-9-]+)$/);
       if (req.method === 'GET' && m) {
