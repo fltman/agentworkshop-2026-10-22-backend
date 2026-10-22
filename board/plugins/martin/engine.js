@@ -3,7 +3,7 @@
 // Pure, deterministic microsimulation: design + demand + seed -> summary, frames, events.
 // No I/O here; index.js wraps it in HTTP.
 
-const VERSION = '0.5.1';
+const VERSION = '0.5.2';
 const ARMS = ['N', 'E', 'S', 'W'];
 const TURNS = ['L', 'S', 'R'];
 const TURN_RANK = { S: 3, R: 2, L: 1 };
@@ -693,7 +693,8 @@ function simulate(rawDesign, rawDemand, options = {}) {
         if (w.s < w.path.sRingStart - 3 || w.s > w.path.sRingEnd) continue;
         const thW = angleOf(w);
         const arc = wrap(thE - thW) * p.ringR;
-        if (arc > -3 && arc < Math.max(10, w.v * 3.5)) {
+        // Negative arc: its front has passed our merge point, but its body (up to cls.len) may still be across it.
+        if (arc > -(w.cls.len + 1) && arc < Math.max(10, w.v * 3.5)) {
           // Does it still circulate when it reaches our merge point?
           let rem = w.path.thRingEnd - thW; while (rem < -0.3) rem += 2 * Math.PI;
           if (rem > arc / p.ringR - 0.05) { lastReason = 'yield:' + w.path.key; return false; }

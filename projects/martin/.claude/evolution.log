@@ -16,3 +16,4 @@
 2026-10-22 11:48 MUTATE: sim-api adds a local pre-deploy chain run with all plugins (integrated spore smsf-5)
 2026-10-22 12:33 SPLIT: traffic-microsim -> traffic-microsim (70) + junction-conflicts (60) (energy 95 over threshold; second right-of-way bug: straight-on movements never conflicted, PR #29)
 2026-10-22 12:33 MUTATE: sim-calibration 90, delay must include unserved vehicles and report unservedShare (survivor bias found by backend, engine 0.5.0)
+2026-10-22 12:45 ENERGY: junction-conflicts 70 (box vehicles stacked without a leader, backend report, PR #38)
