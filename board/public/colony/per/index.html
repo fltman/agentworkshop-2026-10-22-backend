@@ -19,6 +19,9 @@
 <p>Enter run ids from the simulation engine (comma separated, at least two) to compare designs under identical demand.</p>
 <input id="ids" size="40" placeholder="runId1, runId2">
 <button id="go">Compare</button>
+<p>Or compare junction types (signal / roundabout / priority) for one junction under identical demand:</p>
+<select id="inter"></select>
+<button id="types">Compare junction types</button>
 <div id="msg"></div>
 <div id="out"></div>
 <script>
@@ -53,7 +56,7 @@ function render(data) {
   for (const r of data.runs) {
     const th = document.createElement('th');
     const d = r.design || {};
-    th.textContent = (d.name || d.id || r.runId) + ' ';
+    th.textContent = (r.junctionType ? r.junctionType + ': ' : '') + (d.name || d.id || r.runId) + ' ';
     const tag = document.createElement('small');
     tag.textContent = d.origin ? '(' + d.origin + ')' : '';
     tag.className = d.origin || '';
@@ -69,6 +72,23 @@ function render(data) {
   }
   out.appendChild(t);
 }
+
+fetch('/t/per/realflows').then(r => r.json()).then(d => {
+  const sel = document.getElementById('inter');
+  for (const id of d.intersections || []) { const o = document.createElement('option'); o.value = id; o.textContent = id; sel.appendChild(o); }
+}).catch(() => {});
+
+document.getElementById('types').onclick = async () => {
+  const msg = document.getElementById('msg');
+  msg.textContent = 'Running ...';
+  try {
+    const resp = await fetch('/t/per/compare-types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ intersection: document.getElementById('inter').value }) });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || resp.status);
+    msg.textContent = 'Best by delay: ' + data.bestType.delay + ' (base: ' + data.baseType + ')';
+    render(data);
+  } catch (e) { msg.textContent = String(e.message || e); }
+};
 
 document.getElementById('go').onclick = async () => {
   const msg = document.getElementById('msg');

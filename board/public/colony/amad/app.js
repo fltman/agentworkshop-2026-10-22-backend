@@ -329,6 +329,7 @@ function renderDesignEditor() {
   designVisibility();
   scene.setDesign(ds);
   updateSummaries();
+  syncTypebar();
 }
 
 function renderOrigin() {
@@ -404,6 +405,7 @@ const loadDesign = guard(async () => {
   if (!id) return;
   state.design = clone(await api.getDesign(id));
   state.armStash = {};
+  resetTypeSwitch();
   renderDesignEditor();
   resetPlayback();
   applyView();
@@ -426,7 +428,13 @@ const loadDesigns = guard(async () => {
 }, 'Could not list designs');
 
 $('design').addEventListener('change', loadDesign);
-$('dtype').addEventListener('change', () => { if (state.design) { readDesignEditor(true); renderPhases(); designVisibility(); } });
+// the editor's control-type radio does the same as the junction-type switch above the canvas
+$('dtype').addEventListener('change', () => {
+  if (!state.design) return;
+  const want = radio('dtype');
+  setRadio('dtype', state.design.type || 'signal'); // keep the editor showing the real type until the switch lands
+  requestTypeSwitch(want, want === 'roundabout' ? radio('rbLanes') === '2' : false);
+});
 $('radius').addEventListener('input', () => { $('radiusOut').textContent = $('radius').value + ' m'; paintRange($('radius')); if (state.design) readDesignEditor(true); });
 $('compareList').addEventListener('change', updateSummaries);
 
@@ -676,8 +684,10 @@ async function run() {
     renderMetrics(null, res.summary, meta);
     showTab('metrics');
     renderAlign();
-    try { renderMetrics(await api.getMetrics(state.runId), res.summary, meta); }
+    let metrics = null;
+    try { metrics = await api.getMetrics(state.runId); renderMetrics(metrics, res.summary, meta); }
     catch (e) { showError(e, 'Metrics module unavailable, showing engine summary'); }
+    return { runId: state.runId, summary: res.summary || {}, metrics, layout: res.layout, durationSec: res.demand?.durationSec ?? state.demand.durationSec };
   } catch (e) {
     showError(e, 'Run failed');
     setStatus('Run failed');
@@ -910,6 +920,228 @@ $('suggest').addEventListener('click', guard(async () => {
   if (!variants.length) { toast('info', 'No suggestions returned', 'The design module had no variants for this design.'); return; }
   await compareDesigns([base, ...variants]);
 }, 'Suggest failed'));
+
+// ---------- junction-type switch (Signal / Roundabout / Priority) ----------
+// Picking another type asks be-christian /suggest for converted variants of the ORIGINAL design, makes the
+// matching one current, runs it with the same demand + seed and shows a before/after panel. Picking the
+// original's type again restores the original. The "before" run is done once per original+demand and cached.
+const TYPE_LABEL = { signal: 'Signal', roundabout: 'Roundabout', priority: 'Priority' };
+const isTwoLane = (d) => d?.type === 'roundabout' && d.roundabout?.lanes === 2;
+const typeLabel = (d) => (d ? (TYPE_LABEL[d.type] || d.type || '?') + (isTwoLane(d) ? ' (2-lane)' : '') : '');
+const sw = {
+  session: 0, original: null, showing: 'original', variantsKey: '', variants: null,
+  baseKey: '', base: null, last: null, busy: false, pending: null,
+};
+
+function resetTypeSwitch() {
+  sw.session++;
+  Object.assign(sw, { original: null, showing: 'original', variantsKey: '', variants: null, baseKey: '', base: null, last: null, pending: null });
+  if ($('baPanel')) $('compareOut').innerHTML = '<div class="empty"><div class="empty-ico">⇄</div><div>Switch the junction type above the canvas, pick designs in step 3, or let the design module suggest variants.</div></div>';
+  syncTypebar();
+}
+
+function syncTypebar() {
+  const d = state.design;
+  document.querySelectorAll('input[name="jtype"]').forEach((i) => { i.checked = !!d && i.value === d.type; });
+  $('rbLanes').hidden = d?.type !== 'roundabout';
+  setRadio('rbLanes', isTwoLane(d) ? '2' : '1');
+  const onVariant = sw.showing === 'variant' && !!sw.original;
+  $('typeRestore').hidden = !onVariant || sw.busy;
+  if (sw.busy) return;
+  $('typeState').innerHTML = !d ? '<span class="muted">No design loaded</span>'
+    : onVariant ? `<span class="badge suggested">suggested</span><span>converted from ${esc(typeLabel(sw.original))}</span>`
+      : `<span class="badge ${esc(d.origin)}">${esc(d.origin || '')}</span><span class="muted">${esc(typeLabel(d))}</span>`;
+}
+
+function setSwitchBusy(on, text) {
+  sw.busy = on;
+  $('typebar').classList.toggle('busy', on);
+  $('typebar').setAttribute('aria-busy', String(on));
+  if (on) { $('typeState').innerHTML = `<span class="spinner"></span> ${esc(text || 'Working…')}`; $('typeRestore').hidden = true; }
+  else syncTypebar();
+}
+
+function matchVariant(vs, type, twoLane, orig) {
+  const list = (Array.isArray(vs) ? vs : []).filter((v) => v && v.id !== orig.id);
+  const sfx = type === 'signal' ? '-tosignal' : type === 'priority' ? '-topriority' : twoLane ? '-twolane' : '-roundabout';
+  return list.find((v) => typeof v.id === 'string' && v.id.endsWith(sfx))
+    // be-christian cuts ids at 48 chars, which can eat the suffix: fall back to the converted type (+ lane count)
+    || list.find((v) => v.type === type && v.type !== orig.type && (type !== 'roundabout' || isTwoLane(v) === twoLane))
+    || (type === 'roundabout' && twoLane ? list.find((v) => isTwoLane(v) && !isTwoLane(orig)) : null)
+    || null;
+}
+
+// The suggest call gets the bearing-injected copy; keep the injected bearings out of the editor design so the
+// geo key (and the OSM alignment) stays the same as for the original.
+function stripInjected(v, orig) {
+  if (!v.arms || Array.isArray(v.arms)) return v;
+  for (const [a, x] of Object.entries(v.arms)) if (x && orig.arms?.[a]?.bearingDeg == null) delete x.bearingDeg;
+  return v;
+}
+
+const totalVeh = () => Object.values(state.demand?.arms || {}).reduce((s, a) => s + (a?.vehPerHour || 0), 0);
+const switchKey = (orig) => JSON.stringify([simDesign(orig), state.demand]);
+
+const BA_ROWS = [
+  ...['delay', 'p95', 'throughput', 'stopped', 'queue', 'co2'].map((k) => KPIS.find((x) => x.key === k)),
+  { key: 'unserved', label: 'Unserved share', unit: '%', lower: true, get: (s) => { const v = pick(s, ['delay.unservedShare']); return v == null ? null : v * 100; } },
+  { key: 'exited', label: 'Delay, exited vehicles only', unit: 's', lower: true, get: (s) => pick(s, ['delay.exitedMeanSec']) },
+];
+// martin's summary first: its delay.meanSec (every arrived vehicle) is the headline number
+const baSrcs = (r) => [r?.summary, r?.metrics].filter(Boolean);
+
+function deltaHtml(k, b, a) {
+  if (b == null || a == null) return '<span class="delta same">–</span>';
+  const dec = k.dec ?? 1;
+  const d = a - b;
+  if (Math.round(Math.abs(d) * 10 ** dec) === 0) return '<span class="delta same" title="no change">= 0</span>';
+  const better = k.lower ? d < 0 : d > 0;
+  const word = better ? 'better' : 'worse';
+  const rel = k.unit !== '%' && b !== 0 ? ` (${d > 0 ? '+' : '−'}${Math.round(Math.abs(d / b) * 100)}%)` : '';
+  const abs = `${d > 0 ? '+' : '−'}${fmtN(Math.abs(d), dec)}${k.unit === '%' ? ' pp' : ''}`;
+  return `<span class="delta ${word}" title="${word} (${k.lower ? 'lower' : 'higher'} is better)">${d > 0 ? '▲' : '▼'} ${abs}${rel}<span class="sr-only"> ${word}</span></span>`;
+}
+
+function renderBeforeAfter(orig, after, beforeRun, afterRun, { restored = false } = {}) {
+  const b = baSrcs(beforeRun), a = baSrcs(afterRun);
+  const rows = BA_ROWS.map((k) => ({ k, bv: k.get(b), av: k.get(a) })).filter((r) => r.bv != null || r.av != null);
+  const head = rows.find((r) => r.k.key === 'delay');
+  const val = (v, k) => `${fmtN(v, k.dec ?? 1)}<small>${esc(k.unit)}</small>`;
+  const hero = head ? `<div class="ba-hero" aria-label="Mean delay before and after">
+      <div><div class="lbl">Before · mean delay</div><div class="v">${val(head.bv, head.k)}</div></div>
+      <div class="mid">${deltaHtml(head.k, head.bv, head.av)}</div>
+      <div style="text-align:right"><div class="lbl">After · mean delay</div><div class="v">${val(head.av, head.k)}</div></div></div>` : '';
+  const body = rows.map(({ k, bv, av }) => `<tr><td>${esc(k.label)}<span class="unit">${esc(k.unit)} · ${k.lower ? 'lower' : 'higher'} is better</span></td><td>${fmtN(bv, k.dec ?? 1)}</td><td>${fmtN(av, k.dec ?? 1)}</td><td>${deltaHtml(k, bv, av)}</td></tr>`).join('');
+  const dm = state.demand || {};
+  $('compareOut').innerHTML = `<div class="ba" id="baPanel">
+    <div class="sec-title" style="margin-top:0">Before / after · junction type</div>
+    ${restored ? `<div class="hint good" style="margin-bottom:8px">↺ Original restored (${esc(typeLabel(orig))}). The last conversion stays below for reference.</div>` : ''}
+    <div class="ba-head"><span class="badge">before</span><b>${esc(orig.name || orig.id)}</b><span class="muted">${esc(typeLabel(orig))}</span>
+      <span class="arrow" aria-hidden="true">→</span><span class="badge suggested">after</span><b>${esc(after.name || after.id)}</b><span class="muted">${esc(typeLabel(after))}</span></div>
+    ${after.rationale ? `<div class="rationale">💡 ${esc(after.rationale)}</div>` : ''}
+    ${hero}
+    ${rows.length ? `<div class="cmp-wrap"><table class="ba-tbl"><tr><th>Metric</th><th>Before</th><th>After</th><th>Change</th></tr>${body}</table></div>` : '<div class="empty">No known metrics in the answers.</div>'}
+    <div class="ba-note">Both runs use the same demand and seed (seed ${esc(dm.seed)}, ${esc(dm.durationSec)} s, ${esc(totalVeh())} veh/h). The result holds for this seed and demand only: try another seed or hour before drawing conclusions.</div>
+    <div class="cmp-meta" style="margin-top:8px">Before: run ${esc(beforeRun?.runId || '–')} · After: run ${esc(afterRun?.runId || '–')}${after.basedOn ? ` · variant of ${esc(after.basedOn)} suggested by be-christian` : ''}</div>
+    ${restored ? '' : '<button type="button" class="btn btn-ghost btn-xs" id="baRestore">↺ Restore original</button>'}
+  </div>`;
+  $('baRestore')?.addEventListener('click', restoreRequest);
+}
+
+function renderSwitchProgress(steps) {
+  $('compareOut').innerHTML = `<div class="cmp-meta">Converting the junction type · same demand &amp; seed (${esc(state.demand?.seed)})</div><div class="progress" aria-live="polite">${steps.map(([label, st]) =>
+    `<div class="row"><span>${esc(label)}</span>${st === 'done' ? '<span style="color:var(--good)">✓</span>' : st === 'run' ? '<span class="spinner"></span>' : st === 'skip' ? '<span class="muted">cached</span>' : '<span class="muted">…</span>'}</div>`).join('')}</div>`;
+}
+
+function requestTypeSwitch(type, twoLane = false) {
+  if (!TYPE_LABEL[type]) return;
+  if (sw.busy) { sw.pending = { type, twoLane }; return; }   // latest pick wins once the current switch finishes
+  switchType(type, twoLane);
+}
+const restoreRequest = () => { if (sw.original) requestTypeSwitch(sw.original.type, isTwoLane(sw.original)); };
+
+async function restoreOriginal() {
+  const orig = sw.original;
+  state.design = clone(orig);
+  state.armStash = {};
+  sw.showing = 'original';
+  renderDesignEditor();
+  resetPlayback();
+  const key = switchKey(orig);
+  if (sw.base && sw.baseKey === key) {
+    // show the cached before run again (frames may be gone if martin evicted the run)
+    try {
+      scene.setLayout(sw.base.layout);
+      setFrames(await fetchAllFrames(sw.base.runId, sw.base.durationSec || state.demand.durationSec));
+      state.runId = sw.base.runId;
+      renderMetrics(sw.base.metrics, sw.base.summary, { name: orig.name || orig.id, origin: orig.origin, runId: sw.base.runId });
+      setStatus(`Run ${sw.base.runId} · original (before)`);
+    } catch (e) { scene.setLayout(null); console.warn('cached before run not available', e); }
+  }
+  if (sw.last && sw.baseKey === key) { renderBeforeAfter(orig, sw.last.design, sw.base, sw.last.after, { restored: true }); showTab('compare'); }
+  toast('info', 'Original design restored', `${orig.name || orig.id} · ${typeLabel(orig)}`);
+}
+
+async function switchType(type, twoLane) {
+  if (!state.design) { toast('warn', 'Pick a design first'); syncTypebar(); return; }
+  readDesignEditor();
+  syncDemandGlobals();
+  if (!sw.original || sw.showing === 'original') sw.original = clone(state.design); // edits to the original count
+  const orig = sw.original;
+  const token = sw.session;
+  const wantsOriginal = type === orig.type && (type !== 'roundabout' || twoLane === isTwoLane(orig));
+  const label = TYPE_LABEL[type] + (type === 'roundabout' && twoLane ? ' (2-lane)' : '');
+  try {
+    if (wantsOriginal) {
+      if (sw.showing === 'variant') { setSwitchBusy(true, 'Restoring the original…'); await restoreOriginal(); }
+      return;
+    }
+    const key = switchKey(orig);
+    const needBase = !(sw.base && sw.baseKey === key);
+    const steps = [[`Ask the design module for a ${label} layout`, 'run'], ['Run the original (before)', needBase ? 'wait' : 'skip'], [`Run the ${label} variant (after)`, 'wait']];
+    showTab('compare');
+    renderSwitchProgress(steps);
+    setSwitchBusy(true, `Converting to ${label}…`);
+    if (sw.variantsKey !== key) {
+      const vs = await api.suggestDesigns(simDesign(clone(orig)), state.demand);
+      if (token !== sw.session) return;
+      sw.variants = vs; sw.variantsKey = key;
+    }
+    const v = matchVariant(sw.variants, type, twoLane, orig);
+    if (!v) {
+      const why = type === 'roundabout' && twoLane ? ' A two-lane roundabout is only offered for designs with multi-lane approaches.' : '';
+      toast('warn', `No ${label} variant`, `The design module offered no ${label.toLowerCase()} conversion of “${orig.name || orig.id}”.${why}`);
+      if (sw.last) renderBeforeAfter(sw.original, sw.last.design, sw.base, sw.last.after);
+      else $('compareOut').innerHTML = `<div class="empty"><div class="empty-ico">⇄</div><div>No ${esc(label.toLowerCase())} variant for this design.</div></div>`;
+      return;
+    }
+    steps[0][1] = 'done';
+    if (needBase) {
+      steps[1][1] = 'run'; renderSwitchProgress(steps);
+      setSwitchBusy(true, 'Running the original (before)…');
+      const res = await api.runSim(simDesign(orig), state.demand);
+      const runId = res.runId || res.id;
+      let metrics = null;
+      try { metrics = await api.getMetrics(runId); } catch (e) { /* martin's summary is enough */ }
+      if (token !== sw.session) return;
+      sw.base = { runId, summary: res.summary || {}, metrics, layout: res.layout, durationSec: res.demand?.durationSec };
+      sw.baseKey = key;
+      steps[1][1] = 'done';
+    }
+    steps[2][1] = 'run'; renderSwitchProgress(steps);
+    setSwitchBusy(true, `Running the ${label} variant (after)…`);
+    const nd = stripInjected(clone(v), orig);
+    state.design = nd;
+    state.armStash = {};
+    sw.showing = 'variant';
+    renderDesignEditor();
+    resetPlayback();
+    if (runBtn.disabled) await new Promise((r) => { const t = setInterval(() => { if (!runBtn.disabled) { clearInterval(t); r(); } }, 200); });
+    const after = await run();
+    if (token !== sw.session) return;
+    showTab('compare');
+    if (!after) { $('compareOut').innerHTML = `<div class="empty"><div class="empty-ico">!</div><div>The ${esc(label)} variant is loaded but its run failed; press Run to retry.</div></div>`; return; }
+    sw.last = { design: clone(state.design), after };
+    renderBeforeAfter(orig, state.design, sw.base, after);
+    toast('ok', `Converted to ${label}`, `${nd.name || nd.id} · same demand & seed`);
+  } catch (e) {
+    showError(e, 'Junction type switch failed');
+    if (token === sw.session && sw.showing === 'original') $('compareOut').innerHTML = `<div class="empty"><div class="empty-ico">!</div><div>${esc(errText(e))}</div></div>`;
+  } finally {
+    setSwitchBusy(false);
+    const p = sw.pending;
+    sw.pending = null;
+    const cur = state.design;
+    if (p && cur && !(cur.type === p.type && (p.type !== 'roundabout' || isTwoLane(cur) === p.twoLane))) switchType(p.type, p.twoLane);
+  }
+}
+
+$('jtype').addEventListener('change', () => {
+  const t = radio('jtype');
+  requestTypeSwitch(t, t === 'roundabout' && state.design?.type === 'roundabout' ? radio('rbLanes') === '2' : false);
+});
+$('rbLanes').addEventListener('change', () => requestTypeSwitch('roundabout', radio('rbLanes') === '2'));
+$('typeRestore').addEventListener('click', restoreRequest);
 
 // ---------- keyboard ----------
 document.addEventListener('keydown', (e) => {
