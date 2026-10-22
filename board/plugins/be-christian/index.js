@@ -97,6 +97,13 @@ module.exports = {
         const d = this.all().find((x) => x.id === m[1]);
         return d ? send(200, d) : send(404, { error: 'not found' });
       }
+      if (req.method === 'DELETE' && m) {
+        const file = path.join(this.dir, m[1] + '.json');
+        if (PRESETS.some((x) => x.id === m[1])) return send(403, { error: 'existing designs cannot be deleted' });
+        if (!fs.existsSync(file)) return send(404, { error: 'not found' });
+        fs.unlinkSync(file);
+        return send(200, { deleted: m[1] });
+      }
       if (req.method === 'POST' && (p === '/designs' || p === '/validate' || p === '/suggest')) {
         let body = '';
         let size = 0;
