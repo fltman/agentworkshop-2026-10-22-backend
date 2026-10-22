@@ -4,7 +4,7 @@ type: capability
 domain: backend
 tools: Read, Write, Edit, Bash
 model: inherit
-energy: 50
+energy: 60
 spawned: 2026-10-22
 can-merge-with: stockholm-traffic-data
 ---

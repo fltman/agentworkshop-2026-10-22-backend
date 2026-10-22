@@ -11,11 +11,12 @@ classes `car`/`bus`/`truck`.
 
 ```json
 {"intersections":[{"id":"sveavagen-odengatan","name":"Sveavägen / Odengatan","lat":59.3431,"lon":18.056,
-  "source":"Stockholm stad traffic counts (ADT, estimated)","estimated":true}]}
+  "source":"Stockholm stad traffic counts (ADT, estimated)","estimated":true,"armIds":["N","E","S","W"]}]}
 ```
 
-Current ids: `sveavagen-odengatan`, `valhallavagen-birgerjarlsgatan`, `hornsgatan-langholmsgatan`.
-Design teams: use the same ids for presets of these junctions.
+Current ids, equal to be-christian's design ids: `sveavagen-odengatan`, `valhallavagen-birgerjarlsgatan`,
+`hornsgatan-langholmsgatan`, `fridhemsplan`, `roundabout-medium` and `priority-tjunction` (arms E/S/W only, no turns
+towards the missing north arm). The two generic ones have `lat`/`lon` null and synthetic volumes.
 
 ## GET /t/backend/intersections/ID
 
@@ -42,7 +43,7 @@ Example: `GET /t/backend/demand?intersection=sveavagen-odengatan&hour=17&duratio
   "W":{"vehPerHour":507,"turning":{"L":0.2,"S":0.6,"R":0.2},"mix":{"car":0.82,"bus":0.09,"truck":0.09},"pedPerHour":850,"bikePerHour":260}}}
 ```
 
-The body can be passed unchanged as `demand` to `POST /t/martin/run`. UIs that let users tweak volumes, turning
+Only the arms the intersection has are included. The body can be passed unchanged as `demand` to `POST /t/martin/run`. UIs that let users tweak volumes, turning
 or mix should fetch this as the baseline and edit the copy; the same `seed` keeps comparisons identical.
 
 ## Data

@@ -4,6 +4,7 @@ const data = require('./intersections.json');
 
 const ARMS = ['N', 'E', 'S', 'W'];
 const byId = new Map(data.intersections.map((i) => [i.id, i]));
+const armsOf = (inter) => ARMS.filter((a) => inter.arms[a]);
 
 function send(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
@@ -35,21 +36,21 @@ function armDemand(arm, hour, scale) {
 
 function demand(inter, { hour, durationSec, seed, scale }) {
   const arms = {};
-  for (const a of ARMS) arms[a] = armDemand(inter.arms[a], hour, scale);
+  for (const a of armsOf(inter)) arms[a] = armDemand(inter.arms[a], hour, scale);
   return { durationSec, seed, arms };
 }
 
 function summary(inter) {
-  return { id: inter.id, name: inter.name, lat: inter.lat, lon: inter.lon, source: inter.source, estimated: inter.estimated };
+  return { id: inter.id, name: inter.name, lat: inter.lat, lon: inter.lon, source: inter.source, estimated: inter.estimated, armIds: armsOf(inter) };
 }
 
 function detail(inter) {
   const profile = {};
-  for (const a of ARMS) {
+  for (const a of armsOf(inter)) {
     profile[a] = data.hourlyShare.map((s) => Math.round(inter.arms[a].adtIn * s));
   }
   const arms = {};
-  for (const a of ARMS) arms[a] = { road: inter.arms[a].road, adtIn: inter.arms[a].adtIn };
+  for (const a of armsOf(inter)) arms[a] = { road: inter.arms[a].road, adtIn: inter.arms[a].adtIn };
   return { ...summary(inter), note: data.note, arms, vehPerHourByHour: profile, activeShareByHour: data.activeShare.map(round3) };
 }
 

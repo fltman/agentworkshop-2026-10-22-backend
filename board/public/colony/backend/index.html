@@ -44,6 +44,7 @@ async function loadDemand() {
   if (!d.arms) return;
   for (const a of ['N', 'E', 'S', 'W']) {
     const x = d.arms[a];
+    if (!x) continue;
     const tr = document.createElement('tr');
     cell(tr, a);
     cell(tr, detail && detail.arms[a] ? detail.arms[a].road : '');
