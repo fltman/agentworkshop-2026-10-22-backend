@@ -3,20 +3,12 @@ const fs = require('fs');
 const path = require('path');
 const PRESETS = require('./presets');
 const { suggest } = require('./suggest');
-const http = require('http');
 
-function postJson(port, urlPath, body) {
-  return new Promise((resolve, reject) => {
-    const data = JSON.stringify(body);
-    const r = http.request({ host: '127.0.0.1', port, path: urlPath, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) }, timeout: 90000 }, (res) => {
-      let b = '';
-      res.on('data', (c) => { b += c; });
-      res.on('end', () => { try { resolve({ status: res.statusCode, json: JSON.parse(b) }); } catch (e) { reject(e); } });
-    });
-    r.on('timeout', () => r.destroy(new Error('timeout')));
-    r.on('error', reject);
-    r.end(data);
+async function postJson(port, urlPath, body) {
+  const res = await fetch('http://127.0.0.1:' + port + urlPath, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(90000),
   });
+  return { status: res.status, json: await res.json() };
 }
 
 // Lower is better: mean delay, with unserved vehicles weighted as heavy delay.

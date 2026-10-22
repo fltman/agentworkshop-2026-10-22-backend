@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Intersection designs - be-christian</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font: 14px system-ui, sans-serif; background: #12161c; color: #e6e9ee; margin: 0; padding: 20px; max-width: 980px; }
+  h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 15px; margin: 22px 0 8px; }
+  .sub { color: #8b95a5; margin-bottom: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+  .card { background: #1b212b; border: 1px solid #2a3340; border-radius: 8px; padding: 10px; cursor: pointer; }
+  .card.sel { border-color: #4da3ff; }
+  .card b { display: block; margin-bottom: 4px; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 10px; background: #2a3340; margin-right: 4px; }
+  .tag.user { background: #5a3d8a; } .tag.existing { background: #24605a; }
+  label { margin-right: 12px; } input, button { background: #1b212b; color: inherit; border: 1px solid #2a3340; border-radius: 6px; padding: 5px 8px; }
+  input { width: 70px; } button { cursor: pointer; background: #2b6cb0; border-color: #2b6cb0; }
+  button:disabled { opacity: .5; cursor: wait; }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; } th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #2a3340; }
+  tr.best td { color: #7ee787; } .err { color: #ff7b72; } .muted { color: #8b95a5; }
+  svg { background: #0d1117; border-radius: 8px; }
+</style>
+</head>
+<body>
+<h1>Intersection designs</h1>
+<div class="sub">Pick a design, set the traffic, and let the simulator rank it against suggested variants (same demand and seed).</div>
+
+<div id="grid" class="grid"></div>
+
+<h2>Suggest and compare</h2>
+<div>
+  <label>Hour <input id="hour" type="number" min="0" max="23" value="8"></label>
+  <label>Duration (s) <input id="dur" type="number" min="60" max="600" value="300"></label>
+  <label>Seed <input id="seed" type="number" value="42"></label>
+  <label>Volume x <input id="scale" type="number" step="0.1" min="0.1" max="3" value="1"></label>
+  <button id="go">Suggest and compare</button>
+</div>
+<div id="status" class="muted" style="margin-top:8px"></div>
+<table id="result" hidden>
+  <thead><tr><th>#</th><th>Design</th><th>Origin</th><th>Mean delay (s)</th><th>Throughput (veh/h)</th><th>Backlog</th><th>CO2 (kg)</th><th>Score</th></tr></thead>
+  <tbody></tbody>
+</table>
+<div id="why" class="muted" style="margin-top:10px"></div>
+
+<script>
+const BASE = '/t/be-christian';
+const $ = (id) => document.getElementById(id);
+let designs = [], selected = null, names = {}, rationale = {};
+
+function el(tag, text, cls) { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
+
+async function getJson(url, opts) {
+  const r = await fetch(url, opts);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j.error || j.errors || r.status) + '');
+  return j;
+}
+
+function render() {
+  const g = $('grid'); g.textContent = '';
+  for (const d of designs) {
+    const c = el('div', undefined, 'card' + (d.id === selected ? ' sel' : ''));
+    c.append(el('b', d.name));
+    c.append(el('span', d.type, 'tag'), el('span', d.origin, 'tag ' + d.origin));
+    c.addEventListener('click', () => { selected = d.id; render(); });
+    g.append(c);
+  }
+}
+
+$('go').addEventListener('click', async () => {
+  if (!selected) { $('status').textContent = 'Pick a design first.'; return; }
+  const btn = $('go'); btn.disabled = true; $('status').className = 'muted';
+  $('status').textContent = 'Fetching demand...'; $('result').hidden = true; $('why').textContent = '';
+  try {
+    const q = new URLSearchParams({ intersection: selected, hour: $('hour').value, durationSec: $('dur').value, seed: $('seed').value, scale: $('scale').value });
+    const demand = await getJson('/t/backend/demand?' + q);
+    $('status').textContent = 'Simulating the base design and its variants...';
+    const out = await getJson(BASE + '/suggest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ base: selected, demand, evaluate: true }) });
+    names = {}; rationale = {};
+    names[out.base] = designs.find((d) => d.id === out.base)?.name || out.base;
+    for (const s of out.suggestions) { names[s.id] = s.name; rationale[s.id] = s.rationale; }
+    const tb = $('result').querySelector('tbody'); tb.textContent = '';
+    out.ranking.forEach((r, i) => {
+      const tr = document.createElement('tr'); if (i === 0) tr.className = 'best';
+      const isBase = r.designId === out.base;
+      [i + 1, names[r.designId] || r.designId, isBase ? 'existing' : 'suggested', r.delayMeanSec, r.throughputVehPerHour, r.backlog, r.co2Kg, r.score]
+        .forEach((v) => tr.append(el('td', v === undefined || v === null ? '-' : String(v))));
+      tb.append(tr);
+    });
+    $('result').hidden = false;
+    $('status').textContent = 'Done. Lower score is better (mean delay plus a penalty for unserved vehicles).';
+    $('why').textContent = out.suggestions.map((s) => s.name + ': ' + s.rationale).join('  |  ');
+  } catch (e) {
+    $('status').className = 'err'; $('status').textContent = 'Failed: ' + e.message;
+  } finally { btn.disabled = false; }
+});
+
+getJson(BASE + '/designs').then((j) => { designs = j.designs; selected = designs[0] && designs[0].id; render(); })
+  .catch((e) => { $('status').className = 'err'; $('status').textContent = 'Could not load designs: ' + e.message; });
+</script>
+</body>
+</html>
