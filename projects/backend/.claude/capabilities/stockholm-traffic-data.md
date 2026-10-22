@@ -4,7 +4,7 @@ type: capability
 domain: data
 tools: Read, Write, Edit, Bash, WebFetch
 model: inherit
-energy: 60
+energy: 70
 spawned: 2026-10-22
 can-merge-with: demand-api
 ---
