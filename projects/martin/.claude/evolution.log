@@ -12,3 +12,4 @@
 2026-10-22 11:23 HOLD: traffic-microsim above split threshold, not split yet (ring and car-following still change together)
 2026-10-22 11:31 ENERGY: sim-api 90 (demand schedule from backend, frame cap, PR #21)
 2026-10-22 11:32 MUTATE: traffic-microsim learns two-lane ring tracks and scheduled arrivals (both landed in PR #20/#21, future engine work must keep their invariants)
+2026-10-22 11:44 ENERGY: traffic-microsim stays 95, sim-api 95 (arm bearings for real street angles, asked by amad, PR #23)
