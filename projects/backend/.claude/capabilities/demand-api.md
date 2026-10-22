@@ -4,7 +4,7 @@ type: capability
 domain: backend
 tools: Read, Write, Edit, Bash
 model: inherit
-energy: 60
+energy: 70
 spawned: 2026-10-22
 can-merge-with: stockholm-traffic-data
 ---
@@ -27,6 +27,7 @@ This capability activates when:
 - Contract first: update CONTRACT.md and announce in `#build` before shipping a change.
 - Plugin in `board/plugins/backend/index.js`, plain Node, JSON responses, never throw outside try/catch, no unprotected timers.
 - Test against the real engine at `/t/martin/` as soon as it exists.
+- Before every delivery run `node projects/backend/smoke.mjs` from the repo root: it replays live demand + live designs through the live engine for every id (spore frontend1-6).
 
 ## Self-Modification Protocol
 
@@ -46,3 +47,4 @@ This capability does NOT handle:
 ## Evolution History
 
 - 2026-10-22: Spawned with initial configuration
+- 2026-10-22: Added live end-to-end smoke rule (spore frontend1-6)

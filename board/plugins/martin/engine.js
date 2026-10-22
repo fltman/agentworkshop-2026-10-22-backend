@@ -3,7 +3,7 @@
 // Pure, deterministic microsimulation: design + demand + seed -> summary, frames, events.
 // No I/O here; index.js wraps it in HTTP.
 
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 const ARMS = ['N', 'E', 'S', 'W'];
 const ARM_ANGLE = { N: 90, E: 0, S: -90, W: 180 };
 const TURNS = ['L', 'S', 'R'];
@@ -358,9 +358,18 @@ function buildGeometry(design) {
           mid = quadBezier(stop, c, exit, 10);
         }
         const path = makePath([start, stop, ...mid, exit, end]);
-        if (isRb) { const last = mid[mid.length - 1]; path.thRingEnd = Math.atan2(last[1], last[0]); }
+        if (isRb) {
+          const last = mid[mid.length - 1];
+          path.thRingStart = Math.atan2(mid[0][1], mid[0][0]);
+          path.thRingEnd = Math.atan2(last[1], last[0]);
+        }
         path.sStop = a.length;
         path.sExit = path.length - 100;
+        if (isRb) {
+          path.sRingStart = a.length + Math.hypot(mid[0][0] - stop[0], mid[0][1] - stop[1]);
+          const last = mid[mid.length - 1];
+          path.sRingEnd = path.sExit - Math.hypot(exit[0] - last[0], exit[1] - last[1]);
+        }
         path.from = from; path.to = to; path.turn = turn; path.lane = lane.key;
         path.key = `${from}:${turn}:${lane.key}`;
         path.movement = `${from}:${turn}`;
@@ -553,6 +562,22 @@ function simulate(rawDesign, rawDemand, options = {}) {
   }
 
   const timeToBox = (w) => (w.s >= w.path.sStop ? (w.s < w.path.sExit ? 0 : Infinity) : (w.path.sStop - w.s) / Math.max(w.v, 2));
+  // Where along a pedestrian's walk (0..1 from p0) a vehicle path crosses it.
+  const crossFrac = (p, path) => {
+    const c = path.crossPt && path.crossPt[p.arm];
+    if (!c) return -1;
+    const dx = p.p1[0] - p.p0[0], dy = p.p1[1] - p.p0[1];
+    return ((c[0] - p.p0[0]) * dx + (c[1] - p.p0[1]) * dy) / (p.len * p.len);
+  };
+  // No vehicle about to drive over the part [from, to] of this pedestrian's crosswalk.
+  const zebraClear = (p, from, to) => !vehicles.some((v) => {
+    const sc = v.path.cross[p.arm];
+    if (sc == null) return false;
+    const k = crossFrac(p, v.path);
+    if (k < from - 0.05 || k > to + 0.05) return false;
+    const d = sc - v.s;
+    return d > -v.cls.len - 1 && d < Math.max(4, v.v * 1.5);
+  });
   // A walking pedestrian near the point where `path` crosses the crosswalk on `arm`.
   const pedsNear = (path, arm) => {
     const c = path.crossPt[arm];
@@ -588,18 +613,22 @@ function simulate(rawDesign, rawDemand, options = {}) {
     for (const [arm, sc] of Object.entries(p.cross)) if (sc - p.sStop < 12 && pedsNear(p, arm)) { lastReason = 'ped'; return false; }
 
     if (isRb) {
-      // Yield to circulating traffic about to pass our entry point.
-      const e = pointAt(p, p.sStop + 1);
-      const thE = Math.atan2(e.y, e.x);
+      // Yield to circulating traffic that will pass our merge point on the ring.
+      const thE = p.thRingStart;
       for (const w of vehicles) {
         if (w === v || w.path.isBike !== p.isBike || !inBox(w)) continue;
+        if (w.path.from === p.from) {
+          // Same inbound lane: car-following handles it. Other lane on the same arm: do not merge side by side.
+          if (w.path.lane !== p.lane && w.s < w.path.sRingStart + 6) { lastReason = 'yield:' + w.path.key; return false; }
+          continue;
+        }
+        if (w.s < w.path.sRingStart - 3 || w.s > w.path.sRingEnd) continue;
         const thW = angleOf(w);
         const arc = wrap(thE - thW) * design.radius;
-        if (arc > -6 && arc < Math.max(10, w.v * 3)) {
-          if (arc <= 0) return false;
-          const q = pointAt(w.path, w.path.sExit);
-          let rem = Math.atan2(q.y, q.x) - thW; while (rem < 0) rem += 2 * Math.PI;
-          if (rem > arc / design.radius - 0.05) return false;
+        if (arc > -3 && arc < Math.max(10, w.v * 3.5)) {
+          // Does it still circulate when it reaches our merge point?
+          let rem = w.path.thRingEnd - thW; while (rem < -0.3) rem += 2 * Math.PI;
+          if (rem > arc / design.radius - 0.05) { lastReason = 'yield:' + w.path.key; return false; }
         }
       }
       return true;
@@ -680,21 +709,22 @@ function simulate(rawDesign, rawDemand, options = {}) {
         let go;
         if (plan) go = plan.state(`ped:${p.arm}`, t) === 'G';
         else {
-          // Zebra crossing: start when no vehicle is about to drive over it.
-          go = !vehicles.some((v) => {
-            const sc = v.path.cross[p.arm];
-            if (sc == null) return false;
-            const d = sc - v.s;
-            return d > -v.cls.len - 1 && d < Math.max(4, v.v * 1.5);
-          });
+          // Zebra crossing with a refuge island: each half starts when no vehicle is about to drive over that half.
+          go = zebraClear(p, p.pos < p.len / 2 ? 0 : 0.5, p.pos < p.len / 2 ? 0.5 : 1);
         }
-        if (go) {
+        if (go && p.atIsland) { p.walking = true; p.atIsland = false; }
+        else if (go) {
           p.walking = true; p.tStart = t;
           pedWaits.push(t - p.tArrive);
           events.push({ t: r1(t), type: 'ped_start', id: p.id, arm: p.arm, waitSec: r1(t - p.tArrive) });
         }
       } else {
+        const before = p.pos;
         p.pos += p.speed * dt;
+        if (!plan && before < p.len / 2 && p.pos >= p.len / 2) {
+          p.pos = p.len / 2;
+          if (!zebraClear(p, 0.5, 1)) { p.walking = false; p.atIsland = true; }
+        }
         if (p.pos >= p.len) {
           p.done = true;
           events.push({ t: r1(t), type: 'ped_done', id: p.id, arm: p.arm, waitSec: r1(p.tStart - p.tArrive) });
@@ -714,17 +744,34 @@ function simulate(rawDesign, rawDemand, options = {}) {
     const leader = new Map();
     for (const [k, list] of tracks) {
       if (k === 'ring' || k === 'ringbike') {
-        const ang = list.map((v) => ({ v, th: angleOf(v) }));
+        // Ring = circulating plus the short entry/exit connectors. Only vehicles actually on the ring lead
+        // ring traffic; connector vehicles follow their own lane, exiting ones also the outbound lane.
+        const onRing = (x) => x.s >= x.path.sRingStart - 1 && x.s <= x.path.sRingEnd + 1;
+        // Leaving vehicles still overlap the ring for a few metres.
+        const onFoot = (x) => x.s >= x.path.sRingStart - 1 && x.s <= x.path.sRingEnd + 4;
+        const ang = list.map((v) => ({ v, th: angleOf(v), on: onRing(v), foot: onFoot(v) }));
         for (const a of ang) {
-          let best = null, bestArc = Infinity;
-          let rem = a.v.path.thRingEnd - a.th; while (rem < -0.3) rem += 2 * Math.PI;
-          for (const b of ang) {
-            if (a === b) continue;
-            let d = b.th - a.th; while (d <= 0) d += 2 * Math.PI;
-            if (d > rem + 0.3) continue;
-            if (d * design.radius < bestArc) { bestArc = d * design.radius; best = b.v; }
+          const av = a.v, ap = av.path;
+          let best = null, bestGap = Infinity;
+          const consider = (b, gap) => { if (gap < bestGap) { bestGap = gap; best = b; } };
+          if (av.s > ap.sRingEnd + 1) {
+            for (const b of ang) {
+              if (b !== a && b.v.path.outKey === ap.outKey && b.v.s > ap.sRingEnd && b.v.s - b.v.path.sExit > av.s - ap.sExit) consider(b.v, (b.v.s - b.v.path.sExit) - (av.s - ap.sExit) - b.v.cls.len);
+            }
+            for (const b of tracks.get(ap.outKey) || []) consider(b, (b.s - b.path.sExit) + (ap.sExit - av.s) - b.cls.len);
+          } else {
+            let rem = ap.thRingEnd - a.th; while (rem < -0.3) rem += 2 * Math.PI;
+            for (const b of ang) {
+              if (a === b) continue;
+              const bp = b.v.path;
+              if (!a.on && bp.from === ap.from && bp.lane === ap.lane && b.v.s > av.s && b.v.s < bp.sRingStart + 3) { consider(b.v, b.v.s - av.s - b.v.cls.len); continue; }
+              if (!b.foot && !(b.v.s > bp.sRingEnd && bp.outKey === ap.outKey)) continue;
+              let d = b.th - a.th; while (d <= 0) d += 2 * Math.PI;
+              if (d > rem + 0.3) continue;
+              consider(b.v, d * design.radius - b.v.cls.len);
+            }
           }
-          if (best && bestArc < 40) leader.set(a.v, { gap: bestArc - best.cls.len, v: best.v });
+          if (best && bestGap < 40) leader.set(av, { gap: bestGap, v: best.v });
         }
       } else {
         list.sort((x, y) => trackPos(y) - trackPos(x));
@@ -732,6 +779,17 @@ function simulate(rawDesign, rawDemand, options = {}) {
           leader.set(list[i], { gap: trackPos(list[i - 1]) - list[i - 1].cls.len - trackPos(list[i]), v: list[i - 1].v });
         }
       }
+    }
+    // The head of each approach queue also follows the last vehicle from its lane that just passed the stop line.
+    for (const [k, list] of tracks) {
+      const head = list.find((x) => x.s < x.path.sStop && x.path.inKey === k);
+      if (!head || list[0] !== head) continue;
+      let best = null;
+      for (const w of vehicles) {
+        if (w.path.inKey !== k || w.s < w.path.sStop || w.s >= w.path.sExit || w.s - w.cls.len - w.path.sStop > 3) continue;
+        if (!best || w.s < best.s) best = w;
+      }
+      if (best) leader.set(head, { gap: best.s - best.cls.len - head.s, v: best.v });
     }
 
     // 5. Acceleration.
