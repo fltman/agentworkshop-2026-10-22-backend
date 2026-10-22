@@ -62,6 +62,15 @@ function suggest(base, demand) {
     v.phases = null;
     out.push(v);
   }
+  const multiLane = arms.some((a) => base.arms[a].inLanes.length >= 2);
+  if (multiLane && (base.type !== 'roundabout' || !(base.roundabout && base.roundabout.lanes === 2))) {
+    const v = variant(base, 'twolane', base.name + ' (two-lane roundabout)', 'Two circulating lanes, radius at least 20 m, for multi-lane approaches.');
+    v.type = 'roundabout';
+    v.radius = Math.max(20, base.type === 'roundabout' ? base.radius || 0 : 0);
+    v.roundabout = { radius: v.radius, lanes: 2 };
+    v.phases = null;
+    out.push(v);
+  }
   if (base.type === 'roundabout') {
     const v = variant(base, 'bigger', base.name + ' (larger roundabout)', 'Radius increased by 6 m.');
     v.radius = Math.min(60, (base.radius || 18) + 6);

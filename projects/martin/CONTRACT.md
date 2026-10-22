@@ -55,13 +55,14 @@ designs comparable.
 | `bannedMovements` | movement ids that are not allowed; their demand is spread over the remaining turns | `[]` |
 | `signal.phases[]` | used when `type` = `signal`. Seconds. If no `ped:*` is listed anywhere, crosswalks get green with the parallel straight movements | 2-phase N-S / E-W |
 | `roundabout.radius` | used when `type` = `roundabout`. Centre-line radius of the ring, metres (8 to 40) | 15 |
+| `roundabout.lanes` | circulating lanes, 1 or 2 (alias `circulatingLanes`). With 2, the leftmost entry lane of a multi-lane arm circulates on the inner lane (radius - laneWidth), the others on the outer lane; needs radius >= 12 | 1 |
 | `priority.major` | used when `type` = `priority`. Arms on the major road; the others give way | `["N","S"]` |
 
 Also accepted (the design module's shape): `arms` as a map `{ "N": {...} }`, `inLanes` as
 `[{ "turns": ["L","S"] }]`, top-level `phases: [{ "durationSec": 30, "green": ["N:S", ...] }]` and top-level `radius`.
 
-Known limits (v0.1): the roundabout ring is single-lane, so a multi-lane roundabout gets single-lane
-capacity. Unsignalised crosswalks are zebras with a refuge island: pedestrians cross each half separately. Left turns on a signal are permissive unless they have their own phase: they yield to
+Known limits (v0.2): the ring has at most 2 circulating lanes (`roundabout.lanes`, default 1). Inner-lane exits
+cross the outer lane without a lane-change model. Unsignalised crosswalks are zebras with a refuge island: pedestrians cross each half separately. Left turns on a signal are permissive unless they have their own phase: they yield to
 opposing straight and right traffic.
 
 ## Demand (input)
@@ -129,7 +130,7 @@ Errors: HTTP 400 `{ "error": "invalid input", "details": ["arms[0].id must be N,
   "type": "signal", "laneWidth": 3.5, "stopDist": 14,
   "arms": [{ "id": "N", "angleDeg": 90, "inLanes": 2, "inLaneTurns": [["L","S"],["S","R"]], "outLanes": 2,
              "length": 150, "crosswalk": true, "bikeLane": true }],
-  "roundabout": null,
+  "roundabout": null,      // roundabouts: { "radius": 20, "lanes": 2 }
   "signal": { "phases": [{ "green": 30, "amber": 3, "allRed": 2, "movements": ["N:L", "..."] }] },
   "crosswalks": [{ "arm": "N", "x1": -7, "y1": 11.5, "x2": 7, "y2": 11.5 }],
   "paths": { "N:L:0": [[-1.75, 164], [-1.75, 14], [3.1, 2.1], [14, 1.75], [114, 1.75]] }

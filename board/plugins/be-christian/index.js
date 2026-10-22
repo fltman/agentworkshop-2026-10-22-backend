@@ -58,6 +58,10 @@ function validate(d) {
     });
   }
   if (d.type === 'roundabout' && !(d.radius >= 8 && d.radius <= 60)) errors.push('roundabout needs radius 8-60 m');
+  if (d.type === 'roundabout' && d.roundabout && d.roundabout.lanes !== undefined) {
+    if (d.roundabout.lanes !== 1 && d.roundabout.lanes !== 2) errors.push('roundabout.lanes must be 1 or 2');
+    else if (d.roundabout.lanes === 2 && !(d.radius >= 12)) errors.push('a 2-lane roundabout needs radius of at least 12 m');
+  }
   return errors;
 }
 
