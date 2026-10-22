@@ -174,8 +174,8 @@
     {
       "id": "sveavagen-odengatan",
       "name": "Sveavägen / Odengatan",
-      "lat": 59.3431,
-      "lon": 18.056,
+      "lat": 59.344,
+      "lon": 18.0556,
       "source": "Stockholm stad traffic counts (ADT, estimated)",
       "estimated": true,
       "arms": {
@@ -396,8 +396,8 @@
     {
       "id": "fridhemsplan",
       "name": "Fridhemsplan",
-      "lat": 59.3326,
-      "lon": 18.0306,
+      "lat": 59.3334,
+      "lon": 18.0298,
       "source": "Stockholm stad traffic counts (ADT, estimated)",
       "estimated": true,
       "arms": {

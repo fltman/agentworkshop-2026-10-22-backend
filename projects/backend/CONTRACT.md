@@ -73,4 +73,4 @@ Overriding an arm the intersection lacks, or an unknown field, gives 400.
 Weekday volumes are estimated from Stockholm stad's published annual average daily traffic per street, spread over
 the day with a typical urban weekday profile. Saturday and Sunday use typical weekend shares (75 % and 62 % of
 weekday traffic, flatter midday peak). Turning shares, vehicle mix and pedestrian/bicycle peaks are
-assumptions, hence `"estimated": true`. Source data lives in `board/plugins/backend/intersections.json`.
+assumptions, hence `"estimated": true`. Coordinates of the four real junctions are checked against OpenStreetMap. Source data lives in `board/plugins/backend/intersections.json`.
