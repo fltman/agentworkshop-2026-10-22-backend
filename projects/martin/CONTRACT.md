@@ -62,7 +62,12 @@ designs comparable.
 Also accepted (the design module's shape): `arms` as a map `{ "N": {...} }`, `inLanes` as
 `[{ "turns": ["L","S"] }]`, top-level `phases: [{ "durationSec": 30, "green": ["N:S", ...] }]` and top-level `radius`.
 
-Known limits (v0.4): arms with `bearingDeg` far from 90° apart show somewhat more brief vehicle overlaps inside a signal box. the ring has at most 2 circulating lanes (`roundabout.lanes`, default 1). Inner-lane exits
+Fixed in v0.5: crossing straight-on movements did not see each other as conflicts, and some left turns missed the
+opposing straight traffic. Priority junctions therefore let the minor road cross busy major roads freely, and signal
+boxes did not clear between phases. Expect higher, more realistic delay at busy priority and signal junctions;
+roundabouts are unchanged.
+
+Known limits (v0.5): arms with `bearingDeg` far from 90° apart show somewhat more brief vehicle overlaps inside a signal box. the ring has at most 2 circulating lanes (`roundabout.lanes`, default 1). Inner-lane exits
 cross the outer lane without a lane-change model. Unsignalised crosswalks are zebras with a refuge island: pedestrians cross each half separately. Left turns on a signal are permissive unless they have their own phase: they yield to
 opposing straight and right traffic.
 
@@ -113,7 +118,7 @@ Errors: HTTP 400 `{ "error": "invalid input", "details": ["arms[0].id must be N,
   "durationSec": 900,
   "vehicles": { "generated": 512, "exited": 489, "inNetwork": 21, "backlog": 2 },
   "throughputVehPerHour": 1956,
-  "delay": { "meanSec": 18.4, "p95Sec": 52.1,
+  "delay": { "meanSec": 18.4, "p95Sec": 52.1, "exitedMeanSec": 16.9, "unservedShare": 0.04,
              "perArm": { "N": { "meanSec": 15.2, "count": 130 } },
              "perMovement": { "N:L": { "meanSec": 24.0, "count": 26 } } },
   "queue": { "perArm": { "N": { "maxVeh": 9, "meanVeh": 2.7, "maxMeters": 61 } } },
@@ -124,7 +129,11 @@ Errors: HTTP 400 `{ "error": "invalid input", "details": ["arms[0].id must be N,
 }
 ```
 
-- **delay**: actual travel time minus free-flow travel time, for vehicles that left the model (bikes excluded).
+- **delay**: actual travel time minus free-flow travel time, bikes excluded (v0.5). `meanSec`, `p95Sec`, `perArm` and
+  `perMovement` count every vehicle that arrived: vehicles still inside or still waiting to enter at the end carry
+  the delay they have had so far (waiting vehicles count per arm only). This keeps a blocked approach from looking fast.
+  `exitedMeanSec` is the old number (exited vehicles only). `unservedShare` is the share of arrived vehicles that did
+  not get out; above about 0.1 the design is oversaturated and a longer run would show even more delay.
 - **queue**: vehicles slower than 2 m/s lined up behind the stop line, plus vehicles waiting to enter the model.
 - **stops**: a vehicle is stopped when its speed drops below 0.5 m/s.
 - **emissions**: CO2 from a simple per-class model (idle + distance + acceleration). Good for comparing designs, not absolute truth.

@@ -64,6 +64,8 @@ export const listDesigns = async (origin) => {
 export const getDesign = async (id) => unwrapDesign(await call('be-christian', `/designs/${encodeURIComponent(id)}`));
 export const saveDesign = (design) => call('be-christian', '/designs', { method: 'POST', body: design });
 export const validateDesign = (design) => call('be-christian', '/validate', { method: 'POST', body: design });
+// OSM draft + road centrelines around a point: { design: { osm: { geometry: [{ points: [[x,y]...] }] } } }
+export const getOsm = ({ lat, lon, design } = {}) => call('be-christian', '/osm', { query: lat != null && lon != null ? { lat, lon } : { design } });
 export const suggestDesigns = async (design, demand) => {
   const r = await call('be-christian', '/suggest', { method: 'POST', body: { design, demand } });
   return Array.isArray(r) ? r : (r?.suggestions ?? []);

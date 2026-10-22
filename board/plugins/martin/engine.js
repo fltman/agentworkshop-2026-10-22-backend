@@ -3,7 +3,7 @@
 // Pure, deterministic microsimulation: design + demand + seed -> summary, frames, events.
 // No I/O here; index.js wraps it in HTTP.
 
-const VERSION = '0.4.0';
+const VERSION = '0.5.0';
 const ARMS = ['N', 'E', 'S', 'W'];
 const TURNS = ['L', 'S', 'R'];
 const TURN_RANK = { S: 3, R: 2, L: 1 };
@@ -91,6 +91,18 @@ function segIntersect(p1, p2, p3, p4) {
 }
 
 // First distance along `path` (between sFrom and sTo) where it crosses polyline `pts`.
+// The polyline without its last `d` meters, so paths that only meet at the exit do not count as crossing.
+// (Dropping the last point instead left straight paths, which have two box points, with no segment at all.)
+function trimEnd(pts, d) {
+  const out = pts.slice();
+  while (out.length >= 2) {
+    const a = out[out.length - 2], b = out[out.length - 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (L > d) { const k = (L - d) / L; out[out.length - 1] = [a[0] + k * (b[0] - a[0]), a[1] + k * (b[1] - a[1])]; return out; }
+    out.pop(); d -= L;
+  }
+  return out;
+}
+
 function crossingS(path, sFrom, sTo, pts) {
   const { points, cum } = path;
   for (let i = 1; i < points.length; i++) {
@@ -447,7 +459,7 @@ function buildGeometry(design) {
     for (let j = i + 1; j < pathList.length; j++) {
       const p = pathList[i], q = pathList[j];
       if (p.from === q.from) continue;
-      const crosses = crossingS(p, p.sStop, p.sExit - 0.5, q.boxPts.filter((pt, k) => k < q.boxPts.length - 1)) !== null;
+      const crosses = crossingS(p, p.sStop, p.sExit - 0.5, trimEnd(q.boxPts, 0.5)) !== null;
       if (crosses || p.outKey === q.outKey) { geo.conflict[p.key].add(q.key); geo.conflict[q.key].add(p.key); }
       if (crosses) { geo.crosses[p.key].add(q.key); geo.crosses[q.key].add(p.key); }
     }
@@ -954,17 +966,24 @@ function simulate(rawDesign, rawDemand, options = {}) {
   // ---------------------------------------------------------------- summary
   const cars = finished.filter((f) => f.v.clsName !== 'bike');
   const bikes = finished.filter((f) => f.v.clsName === 'bike');
-  const delays = cars.map((f) => f.delay);
+  const motorLeft = vehicles.filter((v) => v.clsName !== 'bike');
+  const backlogCount = design.armIds.reduce((s, id) => s + backlog[id].filter((r) => r.kind !== 'bike').length, 0);
+  // Delay counts every vehicle that arrived, not only those that got out: vehicles still inside or still waiting
+  // to enter carry the delay they have had so far. Otherwise a blocked minor road would look fast.
+  const unserved = motorLeft.map((v) => ({ arm: v.arm, movement: v.movement, delay: Math.max(0, T - v.tArrive - v.ff * Math.min(1, v.s / v.path.length)) }))
+    .concat(design.armIds.flatMap((id) => backlog[id].filter((r) => r.kind !== 'bike').map((r) => ({ arm: id, movement: null, delay: Math.max(0, T - r.t) }))));
+  const exitedDelays = cars.map((f) => f.delay);
+  const all = cars.map((f) => ({ arm: f.v.arm, movement: f.v.movement, delay: f.delay })).concat(unserved);
+  const delays = all.map((x) => x.delay);
   const perArm = {}, perMovement = {};
-  for (const f of cars) {
-    for (const [o, k] of [[perArm, f.v.arm], [perMovement, f.v.movement]]) {
+  for (const f of all) {
+    for (const [o, k] of [[perArm, f.arm], [perMovement, f.movement]]) {
+      if (k == null) continue;
       const x = o[k] || (o[k] = { sum: 0, count: 0 });
       x.sum += f.delay; x.count++;
     }
   }
   const fin = (o) => Object.fromEntries(Object.entries(o).map(([k, x]) => [k, { meanSec: r1(x.sum / x.count), count: x.count }]));
-  const motorLeft = vehicles.filter((v) => v.clsName !== 'bike');
-  const backlogCount = design.armIds.reduce((s, id) => s + backlog[id].filter((r) => r.kind !== 'bike').length, 0);
   const allMotor = cars.map((f) => f.v).concat(motorLeft);
   const nMotor = allMotor.length || 1;
   const stoppedVehicles = allMotor.filter((v) => v.stops > 0).length;
@@ -975,6 +994,8 @@ function simulate(rawDesign, rawDemand, options = {}) {
     throughputVehPerHour: Math.round(cars.length * 3600 / T),
     delay: {
       meanSec: r1(delays.reduce((s, x) => s + x, 0) / (delays.length || 1)), p95Sec: r1(percentile(delays, 0.95)),
+      exitedMeanSec: r1(exitedDelays.reduce((s, x) => s + x, 0) / (exitedDelays.length || 1)),
+      unservedShare: r2(unserved.length / (all.length || 1)),
       perArm: fin(perArm), perMovement: fin(perMovement),
     },
     queue: { perArm: Object.fromEntries(design.armIds.map((id) => [id, { maxVeh: queueStats[id].maxVeh, meanVeh: r1(queueStats[id].sumVeh / T), maxMeters: Math.round(queueStats[id].maxMeters) }])) },

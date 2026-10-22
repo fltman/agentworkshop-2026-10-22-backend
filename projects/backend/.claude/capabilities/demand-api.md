@@ -48,3 +48,5 @@ This capability does NOT handle:
 
 - 2026-10-22: Spawned with initial configuration
 - 2026-10-22: Added live end-to-end smoke rule (spore frontend1-6)
+
+- Additive contract changes: without the new param, output must be byte-identical to before (JSON.stringify compare on fixed inputs). Prove a consumer actually uses a new field with an A/B run (with vs without), not just a 200.
