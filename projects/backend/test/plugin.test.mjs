@@ -133,3 +133,25 @@ test('unknown routes fall through to the server 404', async () => {
   assert.equal((await call('GET', '/nothing')).handled, false);
   assert.equal((await call('PUT', '/demand')).handled, false);
 });
+
+test('varying=1 adds an hourly schedule that ramps and keeps top-level arms as the first hour', async () => {
+  const plain = (await call('GET', demandUrl({ intersection: 'fridhemsplan', hour: 6, durationSec: 7200 }))).json;
+  assert.equal(plain.schedule, undefined);
+  const { status, json } = await call('GET', demandUrl({ intersection: 'fridhemsplan', hour: 6, durationSec: 7200, varying: 1 }));
+  assert.equal(status, 200);
+  assert.deepEqual(json.arms, plain.arms);
+  assert.deepEqual(json.schedule.map((s) => [s.atSec, s.hour]), [[0, 6], [3600, 7]]);
+  assert.deepEqual(json.schedule[0].arms, json.arms);
+  assert.ok(json.schedule[1].arms.W.vehPerHour > json.schedule[0].arms.W.vehPerHour);
+  const wrap = (await call('GET', demandUrl({ intersection: 'fridhemsplan', hour: 23, durationSec: 3601, varying: 'true' }))).json;
+  assert.deepEqual(wrap.schedule.map((s) => s.hour), [23, 0]);
+  assert.equal((await call('GET', demandUrl({ intersection: 'fridhemsplan', varying: 'yes' }))).status, 400);
+});
+
+test('POST overrides apply to every schedule step', async () => {
+  const { json } = await call('POST', '/demand', {
+    intersection: 'fridhemsplan', hour: 7, durationSec: 7200, varying: true, overrides: { N: { turning: { S: 1 } } },
+  });
+  for (const step of json.schedule) assert.deepEqual(step.arms.N.turning, { L: 0, S: 1, R: 0 });
+  assert.deepEqual(json.arms.N.turning, { L: 0, S: 1, R: 0 });
+});
