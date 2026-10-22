@@ -1,6 +1,7 @@
 import * as api from './api.js';
 import { Scene, demoFrames, CLS_COLOR, PED_COLOR, SIG_COLOR, STOP_COLOR } from './canvas.js';
 import { TileMap } from './map.js';
+import { getArmBearings, withBearings } from './geo.js';
 
 const $ = (id) => document.getElementById(id);
 const ARMS = ['N', 'E', 'S', 'W'];
@@ -18,6 +19,7 @@ const state = {
   intersections: [], activeArm: 'N', armStash: {}, compared: false,
   view: 'schematic', // 'map' (OpenStreetMap background) or 'schematic'
   overview: false,   // map zoomed out to show every intersection as a marker
+  geo: { key: '', bearings: {}, source: 'none', geometry: null, pending: false }, // real arm bearings (geo.js)
 };
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -597,6 +599,7 @@ document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () 
 // ---------- run + playback ----------
 function resetPlayback() {
   scene.clearFrames();
+  scene.setLayout(null);   // the old run's layout (lanes, bearings) no longer applies
   state.hasFrames = false;
   $('scrub').max = 0; $('scrub').value = 0; $('scrub').disabled = true; $('play').disabled = true;
   $('tNow').textContent = '00:00'; $('tEnd').textContent = '00:00';
@@ -639,12 +642,17 @@ async function run() {
   syncDemandGlobals();
   if (state.overview) zoomToIntersection();
   busy(true);
+  if (state.geo.pending && state.geoWait) {
+    // give the OSM lookup a moment so the run uses the real bearings; Overpass can be slow, so do not block for long
+    setStatus('Waiting for road bearings…');
+    await Promise.race([state.geoWait, new Promise((r) => setTimeout(r, 8000))]);
+  }
   setStatus('Simulating…');
   $('demoTag').hidden = true;
   try {
     let res;
     try {
-      res = await api.runSim(state.design, state.demand);
+      res = await api.runSim(simDesign(state.design), state.demand);
     } catch (e) {
       if (e.status && e.status >= 400 && e.status < 500) throw e; // our input is wrong: show it, no demo
       showError(e, 'Simulation engine unavailable');
@@ -656,6 +664,7 @@ async function run() {
     }
     state.runId = res.runId || res.id;
     scene.setLayout(res.layout);
+    renderAlign();
     busy(true, 'Loading frames…');
     const frames = await fetchAllFrames(state.runId, res.demand?.durationSec ?? state.demand.durationSec);
     setFrames(frames);
@@ -666,6 +675,7 @@ async function run() {
     const meta = { name: state.design.name || state.design.id, origin: state.design.origin, runId: state.runId, warnings };
     renderMetrics(null, res.summary, meta);
     showTab('metrics');
+    renderAlign();
     try { renderMetrics(await api.getMetrics(state.runId), res.summary, meta); }
     catch (e) { showError(e, 'Metrics module unavailable, showing engine summary'); }
   } catch (e) {
@@ -735,7 +745,55 @@ function applyView() {
   tmap.hideSelected = !state.overview;
   scene.hint = on && state.overview ? 'Click an intersection marker to load it' : 'Press Run to simulate this design';
   scene.draw();
+  refreshBearings();
+  renderAlign();
 }
+
+// ---------- real arm bearings (bridge until designs carry bearingDeg) ----------
+// The engine (martin >= 0.4) lays arms out along design.arms[X].bearingDeg; we inject the bearings we derive
+// from OSM into a copy of every design we send. Older engines ignore the field; the canvas then warps the frames.
+const simDesign = (d) => (d && state.geo.key === geoKey() ? withBearings(d, state.geo.bearings) : d);
+function geoKey() {
+  const a = geoAnchor();
+  const own = ARMS.map((id) => state.design?.arms?.[id]?.bearingDeg ?? '').join(',');
+  return a ? `${a[0]},${a[1]}|${own}` : (state.design?.location ? `${state.design.id}|${own}` : '');
+}
+let geoSeq = 0;
+async function refreshBearings() {
+  const key = geoKey();
+  if (key === state.geo.key) return;
+  const seq = ++geoSeq;
+  state.geo = { key, bearings: {}, source: 'none', geometry: null, pending: !!key };
+  scene.setBearings({}); scene.setOsmLines(null); renderAlign();
+  if (!key || !state.design) { state.geo.pending = false; renderAlign(); return; }
+  const p = getArmBearings(state.design, geoAnchor());
+  state.geoWait = p;
+  const r = await p;
+  if (seq !== geoSeq) return;   // a newer intersection/design was picked meanwhile
+  state.geo = { key, bearings: r.bearings, source: r.source, geometry: r.geometry, error: r.error, pending: false };
+  if (!state.hasFrames) scene.setLayout(null);
+  scene.setBearings(r.bearings);
+  scene.setOsmLines(r.geometry);
+  renderAlign();
+}
+function renderAlign() {
+  const tag = $('alignTag');
+  const g = state.geo;
+  const arms = Object.entries(g.bearings || {}).map(([a, b]) => `${a} ${Math.round(b)}°`).join(' · ');
+  const mode = scene.alignment;
+  let text, cls, title;
+  if (!g.key) { tag.hidden = true; return; }
+  if (g.pending) { text = 'Aligning to OSM roads…'; cls = 'pending'; title = 'Fetching road centrelines from OpenStreetMap (can take ~30 s)'; }
+  else if (g.source === 'none') { text = 'Approximate alignment'; cls = 'approx'; title = `Arms drawn at N/E/S/W: real road bearings unavailable (${g.error || 'no data'})`; }
+  else if (mode === 'warp') { text = 'Aligned (client warp)'; cls = 'warp'; title = `Engine did not echo bearingDeg; frames warped onto the real bearings: ${arms}`; }
+  else { text = g.source === 'design' ? 'Aligned (design bearings)' : 'Aligned to OSM roads'; cls = 'ok'; title = `Arm bearings: ${arms || 'all at their labels'}${mode === 'engine' ? ' · laid out by the engine' : ''}`; }
+  tag.hidden = false;
+  tag.className = 'align-tag ' + cls;
+  tag.textContent = text;
+  tag.title = title;
+  $('osmLines').disabled = !g.geometry;
+}
+$('osmLines').addEventListener('change', () => scene.setShowOsm($('osmLines').checked));
 
 function zoomToIntersection() {
   state.overview = false;
@@ -779,7 +837,7 @@ async function compareDesigns(designs) {
     `<div class="row" id="cmpRow${i}"><span>${esc(d.name || d.id)}</span><span class="spinner"></span></div>`).join('')}</div>`;
   const entries = [];
   for (const [i, design] of designs.entries()) {
-    const res = await api.runSim(design, state.demand);
+    const res = await api.runSim(simDesign(design), state.demand);
     const runId = res.runId || res.id;
     let metrics = null;
     try { metrics = await api.getMetrics(runId); } catch (e) { /* fall back to martin's summary */ }
@@ -848,7 +906,7 @@ $('suggest').addEventListener('click', guard(async () => {
   showTab('compare');
   $('compareOut').innerHTML = '<div class="cmp-meta"><span class="spinner"></span> Asking the design module for variants…</div>';
   const base = clone(state.design);
-  const variants = await api.suggestDesigns(base, state.demand);
+  const variants = await api.suggestDesigns(simDesign(base), state.demand);
   if (!variants.length) { toast('info', 'No suggestions returned', 'The design module had no variants for this design.'); return; }
   await compareDesigns([base, ...variants]);
 }, 'Suggest failed'));

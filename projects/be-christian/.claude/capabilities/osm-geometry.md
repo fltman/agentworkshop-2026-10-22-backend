@@ -18,3 +18,4 @@ No simulation or UI. Never edit other teams' folders.
 
 ## Evolution History
 - 2026-10-22: Spawned when the task's optional Overpass reference was picked up
+- 2026-10-22: MUTATE: now also owns real arm bearings (arms.X.bearingDeg) for the engine and map overlay

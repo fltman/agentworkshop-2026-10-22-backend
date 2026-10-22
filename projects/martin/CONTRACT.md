@@ -50,6 +50,7 @@ designs comparable.
 | `arms[].inLanes` | one array per inbound lane, leftmost first, listing the allowed turns | 1 lane `[L,S,R]` |
 | `arms[].outLanes` | number of outbound lanes | same as the number of inbound lanes |
 | `arms[].speedLimit` | km/h | 50 |
+| `arms[].bearingDeg` | optional real compass bearing of the arm, degrees clockwise from north, pointing away from the centre (v0.4). Must be within 60° of the label (N 0, E 90, S 180, W 270), arms at least 30° apart in clockwise N, E, S, W order. Geometry, crosswalks and frames follow it; turns still follow the labels (from N, L goes to E). Sharp angles push the stop lines out. Layout echoes `bearingDeg` and `angleDeg` = 90 - bearingDeg (math degrees, 0 = east, counter-clockwise, -180..180) | label's bearing |
 | `arms[].length` | approach length modelled, metres | 150 |
 | `arms[].crosswalk`, `bikeLane` | whether pedestrians / bikes exist on this arm | true / true |
 | `bannedMovements` | movement ids that are not allowed; their demand is spread over the remaining turns | `[]` |
@@ -61,7 +62,12 @@ designs comparable.
 Also accepted (the design module's shape): `arms` as a map `{ "N": {...} }`, `inLanes` as
 `[{ "turns": ["L","S"] }]`, top-level `phases: [{ "durationSec": 30, "green": ["N:S", ...] }]` and top-level `radius`.
 
-Known limits (v0.2): the ring has at most 2 circulating lanes (`roundabout.lanes`, default 1). Inner-lane exits
+Fixed in v0.5: crossing straight-on movements did not see each other as conflicts, and some left turns missed the
+opposing straight traffic. Priority junctions therefore let the minor road cross busy major roads freely, and signal
+boxes did not clear between phases. Expect higher, more realistic delay at busy priority and signal junctions;
+roundabouts are unchanged.
+
+Known limits (v0.5): arms with `bearingDeg` far from 90° apart show somewhat more brief vehicle overlaps inside a signal box. the ring has at most 2 circulating lanes (`roundabout.lanes`, default 1). Inner-lane exits
 cross the outer lane without a lane-change model. Unsignalised crosswalks are zebras with a refuge island: pedestrians cross each half separately. Left turns on a signal are permissive unless they have their own phase: they yield to
 opposing straight and right traffic.
 
@@ -112,7 +118,7 @@ Errors: HTTP 400 `{ "error": "invalid input", "details": ["arms[0].id must be N,
   "durationSec": 900,
   "vehicles": { "generated": 512, "exited": 489, "inNetwork": 21, "backlog": 2 },
   "throughputVehPerHour": 1956,
-  "delay": { "meanSec": 18.4, "p95Sec": 52.1,
+  "delay": { "meanSec": 18.4, "p95Sec": 52.1, "exitedMeanSec": 16.9, "unservedShare": 0.04,
              "perArm": { "N": { "meanSec": 15.2, "count": 130 } },
              "perMovement": { "N:L": { "meanSec": 24.0, "count": 26 } } },
   "queue": { "perArm": { "N": { "maxVeh": 9, "meanVeh": 2.7, "maxMeters": 61 } } },
@@ -123,7 +129,11 @@ Errors: HTTP 400 `{ "error": "invalid input", "details": ["arms[0].id must be N,
 }
 ```
 
-- **delay**: actual travel time minus free-flow travel time, for vehicles that left the model (bikes excluded).
+- **delay**: actual travel time minus free-flow travel time, bikes excluded (v0.5). `meanSec`, `p95Sec`, `perArm` and
+  `perMovement` count every vehicle that arrived: vehicles still inside or still waiting to enter at the end carry
+  the delay they have had so far (waiting vehicles count per arm only). This keeps a blocked approach from looking fast.
+  `exitedMeanSec` is the old number (exited vehicles only). `unservedShare` is the share of arrived vehicles that did
+  not get out; above about 0.1 the design is oversaturated and a longer run would show even more delay.
 - **queue**: vehicles slower than 2 m/s lined up behind the stop line, plus vehicles waiting to enter the model.
 - **stops**: a vehicle is stopped when its speed drops below 0.5 m/s.
 - **emissions**: CO2 from a simple per-class model (idle + distance + acceleration). Good for comparing designs, not absolute truth.
@@ -133,7 +143,7 @@ Errors: HTTP 400 `{ "error": "invalid input", "details": ["arms[0].id must be N,
 ```json
 {
   "type": "signal", "laneWidth": 3.5, "stopDist": 14,
-  "arms": [{ "id": "N", "angleDeg": 90, "inLanes": 2, "inLaneTurns": [["L","S"],["S","R"]], "outLanes": 2,
+  "arms": [{ "id": "N", "angleDeg": 90, "bearingDeg": 0, "inLanes": 2, "inLaneTurns": [["L","S"],["S","R"]], "outLanes": 2,
              "length": 150, "crosswalk": true, "bikeLane": true }],
   "roundabout": null,      // roundabouts: { "radius": 20, "lanes": 2 }
   "signal": { "phases": [{ "green": 30, "amber": 3, "allRed": 2, "movements": ["N:L", "..."] }] },

@@ -3,9 +3,8 @@
 // Pure, deterministic microsimulation: design + demand + seed -> summary, frames, events.
 // No I/O here; index.js wraps it in HTTP.
 
-const VERSION = '0.3.0';
+const VERSION = '0.5.0';
 const ARMS = ['N', 'E', 'S', 'W'];
-const ARM_ANGLE = { N: 90, E: 0, S: -90, W: 180 };
 const TURNS = ['L', 'S', 'R'];
 const TURN_RANK = { S: 3, R: 2, L: 1 };
 
@@ -92,6 +91,18 @@ function segIntersect(p1, p2, p3, p4) {
 }
 
 // First distance along `path` (between sFrom and sTo) where it crosses polyline `pts`.
+// The polyline without its last `d` meters, so paths that only meet at the exit do not count as crossing.
+// (Dropping the last point instead left straight paths, which have two box points, with no segment at all.)
+function trimEnd(pts, d) {
+  const out = pts.slice();
+  while (out.length >= 2) {
+    const a = out[out.length - 2], b = out[out.length - 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (L > d) { const k = (L - d) / L; out[out.length - 1] = [a[0] + k * (b[0] - a[0]), a[1] + k * (b[1] - a[1])]; return out; }
+    out.pop(); d -= L;
+  }
+  return out;
+}
+
 function crossingS(path, sFrom, sTo, pts) {
   const { points, cum } = path;
   for (let i = 1; i < points.length; i++) {
@@ -183,13 +194,30 @@ function normalizeDesign(raw, errors) {
     if (speedLimit < 10 || speedLimit > 110) errors.push(`arms[${i}].speedLimit must be 10 to 110 km/h`);
     const length = Number(a.length) || 150;
     if (length < 40 || length > 600) errors.push(`arms[${i}].length must be 40 to 600 m`);
+    // Optional real-world compass bearing of the arm (clockwise from north). Turns still follow the N/E/S/W labels.
+    const nominal = { N: 0, E: 90, S: 180, W: 270 }[a.id];
+    let bearing = nominal;
+    if (a.bearingDeg != null) {
+      bearing = ((Number(a.bearingDeg) % 360) + 360) % 360;
+      const off = ((bearing - nominal + 540) % 360) - 180;
+      if (!Number.isFinite(off) || Math.abs(off) > 60) errors.push(`arms[${i}].bearingDeg must be within 60 degrees of ${nominal} for arm ${a.id}`);
+    }
     arms[a.id] = {
-      id: a.id, inLanes, outLanes, speedLimit, v0: speedLimit / 3.6, length,
+      id: a.id, inLanes, outLanes, speedLimit, v0: speedLimit / 3.6, length, bearing, angle: 90 - bearing <= -180 ? 450 - bearing : 90 - bearing,
       crosswalk: a.crosswalk !== false, bikeLane: a.bikeLane !== false,
     };
   });
   const armIds = ARMS.filter((id) => arms[id]);
   if (armIds.length < 2 && Array.isArray(d.arms)) errors.push('design needs at least 2 arms');
+  if (armIds.length >= 2) {
+    let total = 0;
+    armIds.forEach((id, k) => {
+      const gap = (arms[armIds[(k + 1) % armIds.length]].bearing - arms[id].bearing + 360) % 360;
+      total += gap;
+      if (gap < 30 && armIds.length > 1) errors.push(`arms ${id} and ${armIds[(k + 1) % armIds.length]} must be at least 30 degrees apart, in clockwise N, E, S, W order`);
+    });
+    if (Math.round(total) !== 360 && !errors.some((e) => e.includes('30 degrees'))) errors.push('arm bearings must keep the clockwise N, E, S, W order');
+  }
   const banned = new Set(Array.isArray(d.bannedMovements) ? d.bannedMovements : []);
   for (const b of banned) if (!/^[NESW]:[LSR]$/.test(b)) errors.push(`bannedMovements: bad movement id ${b}`);
 
@@ -321,14 +349,21 @@ function buildGeometry(design) {
   const box = maxHalf + 1;
   const isRb = design.type === 'roundabout';
   const R = design.radius;
-  const stopDist = isRb ? R + W * 1.2 + 6 : box + 4;
+  // Arms meeting at a sharp angle need the stop lines further out so the approaches do not overlap.
+  let minGap = 90;
+  design.armIds.forEach((id, k) => {
+    const next = design.armIds[(k + 1) % design.armIds.length];
+    if (next !== id) minGap = Math.min(minGap, (design.arms[next].bearing - design.arms[id].bearing + 360) % 360);
+  });
+  const sharp = box / Math.tan((Math.max(30, minGap) * Math.PI) / 360);
+  const stopDist = isRb ? Math.max(R + W * 1.2 + 6, sharp + 4) : Math.max(box + 4, sharp + 4);
   geo.stopDist = stopDist;
   geo.box = box;
 
   for (const id of design.armIds) {
     const a = design.arms[id];
     if (!a.crosswalk) continue;
-    const u = vec(ARM_ANGLE[id]);
+    const u = vec(design.arms[id].angle);
     const inRight = rightOf(mul(u, -1));
     const outRight = rightOf(u);
     const halfIn = (a.inLanes.length + (a.bikeLane ? 0.6 : 0)) * W;
@@ -339,7 +374,7 @@ function buildGeometry(design) {
 
   for (const from of design.armIds) {
     const a = design.arms[from];
-    const u = vec(ARM_ANGLE[from]);
+    const u = vec(design.arms[from].angle);
     const inDir = mul(u, -1);
     const inRight = rightOf(inDir);
     const lanesSpec = a.inLanes.map((turns, i) => ({ key: i, turns, off: W * (i + 0.5) }));
@@ -349,7 +384,7 @@ function buildGeometry(design) {
         const to = exitArmOf(from, turn);
         const b = design.arms[to];
         if (!b) continue;
-        const v = vec(ARM_ANGLE[to]);
+        const v = vec(design.arms[to].angle);
         const outRight = rightOf(v);
         let outLane;
         if (lane.key === 'bike') outLane = null;
@@ -424,7 +459,7 @@ function buildGeometry(design) {
     for (let j = i + 1; j < pathList.length; j++) {
       const p = pathList[i], q = pathList[j];
       if (p.from === q.from) continue;
-      const crosses = crossingS(p, p.sStop, p.sExit - 0.5, q.boxPts.filter((pt, k) => k < q.boxPts.length - 1)) !== null;
+      const crosses = crossingS(p, p.sStop, p.sExit - 0.5, trimEnd(q.boxPts, 0.5)) !== null;
       if (crosses || p.outKey === q.outKey) { geo.conflict[p.key].add(q.key); geo.conflict[q.key].add(p.key); }
       if (crosses) { geo.crosses[p.key].add(q.key); geo.crosses[q.key].add(p.key); }
     }
@@ -442,7 +477,7 @@ function layoutOf(design, geo) {
     type: design.type, laneWidth: design.laneWidth, stopDist: r2(geo.stopDist), box: r2(geo.box),
     arms: design.armIds.map((id) => {
       const a = design.arms[id];
-      return { id, angleDeg: ARM_ANGLE[id], inLanes: a.inLanes.length, inLaneTurns: a.inLanes, outLanes: a.outLanes,
+      return { id, angleDeg: a.angle, bearingDeg: a.bearing, inLanes: a.inLanes.length, inLaneTurns: a.inLanes, outLanes: a.outLanes,
         length: a.length, speedLimit: a.speedLimit, crosswalk: a.crosswalk, bikeLane: a.bikeLane };
     }),
     roundabout: design.type === 'roundabout' ? { radius: design.radius, lanes: design.ringLanes } : null,
@@ -931,17 +966,24 @@ function simulate(rawDesign, rawDemand, options = {}) {
   // ---------------------------------------------------------------- summary
   const cars = finished.filter((f) => f.v.clsName !== 'bike');
   const bikes = finished.filter((f) => f.v.clsName === 'bike');
-  const delays = cars.map((f) => f.delay);
+  const motorLeft = vehicles.filter((v) => v.clsName !== 'bike');
+  const backlogCount = design.armIds.reduce((s, id) => s + backlog[id].filter((r) => r.kind !== 'bike').length, 0);
+  // Delay counts every vehicle that arrived, not only those that got out: vehicles still inside or still waiting
+  // to enter carry the delay they have had so far. Otherwise a blocked minor road would look fast.
+  const unserved = motorLeft.map((v) => ({ arm: v.arm, movement: v.movement, delay: Math.max(0, T - v.tArrive - v.ff * Math.min(1, v.s / v.path.length)) }))
+    .concat(design.armIds.flatMap((id) => backlog[id].filter((r) => r.kind !== 'bike').map((r) => ({ arm: id, movement: null, delay: Math.max(0, T - r.t) }))));
+  const exitedDelays = cars.map((f) => f.delay);
+  const all = cars.map((f) => ({ arm: f.v.arm, movement: f.v.movement, delay: f.delay })).concat(unserved);
+  const delays = all.map((x) => x.delay);
   const perArm = {}, perMovement = {};
-  for (const f of cars) {
-    for (const [o, k] of [[perArm, f.v.arm], [perMovement, f.v.movement]]) {
+  for (const f of all) {
+    for (const [o, k] of [[perArm, f.arm], [perMovement, f.movement]]) {
+      if (k == null) continue;
       const x = o[k] || (o[k] = { sum: 0, count: 0 });
       x.sum += f.delay; x.count++;
     }
   }
   const fin = (o) => Object.fromEntries(Object.entries(o).map(([k, x]) => [k, { meanSec: r1(x.sum / x.count), count: x.count }]));
-  const motorLeft = vehicles.filter((v) => v.clsName !== 'bike');
-  const backlogCount = design.armIds.reduce((s, id) => s + backlog[id].filter((r) => r.kind !== 'bike').length, 0);
   const allMotor = cars.map((f) => f.v).concat(motorLeft);
   const nMotor = allMotor.length || 1;
   const stoppedVehicles = allMotor.filter((v) => v.stops > 0).length;
@@ -952,6 +994,8 @@ function simulate(rawDesign, rawDemand, options = {}) {
     throughputVehPerHour: Math.round(cars.length * 3600 / T),
     delay: {
       meanSec: r1(delays.reduce((s, x) => s + x, 0) / (delays.length || 1)), p95Sec: r1(percentile(delays, 0.95)),
+      exitedMeanSec: r1(exitedDelays.reduce((s, x) => s + x, 0) / (exitedDelays.length || 1)),
+      unservedShare: r2(unserved.length / (all.length || 1)),
       perArm: fin(perArm), perMovement: fin(perMovement),
     },
     queue: { perArm: Object.fromEntries(design.armIds.map((id) => [id, { maxVeh: queueStats[id].maxVeh, meanVeh: r1(queueStats[id].sumVeh / T), maxMeters: Math.round(queueStats[id].maxMeters) }])) },

@@ -100,3 +100,24 @@ test('a demand schedule changes arrival rates from its atSec on, and keeps earli
   assert.ok(n(ramp, 600, 1200) > 1.6 * n(flat, 600, 1200), `${n(ramp, 600, 1200)} vs ${n(flat, 600, 1200)}`);
   assert.ok(engine.simulate(signal, { ...ex.demand, schedule: [{ atSec: 600, arms: peak }, { atSec: 300, arms: peak }] }).errors.some((e) => e.includes('increasing')));
 });
+
+test('arm bearings rotate the geometry and keep turns working', () => {
+  const skewed = { ...signal, arms: signal.arms.map((a) => ({ ...a, bearingDeg: { N: 20, E: 100, S: 200, W: 260 }[a.id] })) };
+  const r = engine.simulate(skewed, ex.demand);
+  assert.ok(!r.errors, JSON.stringify(r.errors));
+  const w = r.layout.arms.find((a) => a.id === 'W');
+  assert.equal(w.bearingDeg, 260);
+  assert.equal(w.angleDeg, -170);
+  assert.ok(r.summary.vehicles.exited > 0.8 * r.summary.vehicles.generated, JSON.stringify(r.summary.vehicles));
+  const bad = engine.simulate({ ...signal, arms: signal.arms.map((a) => (a.id === 'N' ? { ...a, bearingDeg: 100 } : a)) }, ex.demand);
+  assert.ok(bad.errors.some((e) => e.includes('bearingDeg')));
+});
+
+test('mean delay counts vehicles that never got out', () => {
+  const arms = { N: { vehPerHour: 600, turning: { S: 1 } }, S: { vehPerHour: 600, turning: { S: 1 } }, E: { vehPerHour: 1500, turning: { S: 1 } }, W: { vehPerHour: 1500, turning: { S: 1 } } };
+  const prio = { ...signal, type: 'priority', priority: { major: ['E', 'W'] } };
+  const d = engine.simulate(prio, { durationSec: 600, seed: 3, arms }).summary.delay;
+  assert.ok(d.unservedShare > 0.05, JSON.stringify(d));
+  assert.ok(d.meanSec > d.exitedMeanSec, JSON.stringify(d));
+  assert.ok(d.perArm.N.meanSec > 3 * d.perArm.E.meanSec, JSON.stringify(d.perArm));
+});

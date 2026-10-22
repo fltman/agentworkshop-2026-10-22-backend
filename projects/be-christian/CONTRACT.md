@@ -22,7 +22,12 @@ Base: `/t/be-christian/`. Design JSON follows martin's contract (arms N/E/S/W = 
 ```
 
 - Optional `roundabout: {radius, lanes}` (lanes 1|2, 2 needs radius >= 12) follows martin's engine 0.2.0; top-level `radius` stays for compatibility.
+- Optional `arms.X.bearingDeg` (0-359, clockwise from north, pointing away from the centre; within 60 degrees of the label, arms at least 30 degrees apart): the real street direction from OpenStreetMap, as martin's engine 0.4.0 accepts. `/osm` drafts always carry it. Presets get it from `GET /designs/:id` once their OSM bearings are cached (fetched in the background, retried every 5 minutes while Overpass is down), so the first call may come without.
 - type: `signal` | `roundabout` | `priority`; `radius` (m) only for roundabout; `phases` only for signal.
 - Turns: L/S/R. Movement id: `N:L`. Every movement in `phases` or `bannedMovements` must exist.
 
 Exact field names will be aligned with projects/martin/CONTRACT.md; martin's version wins on conflicts.
+
+## /suggest conversion variants (roundabouts, and T-junctions)
+- `tosignal`: converts a non-signal base to a signal, 60 s cycle with demand-balanced phases.
+- `topriority`: converts a non-signal, non-priority base to `type:"priority"` with `priority.major` set to the busiest axis.

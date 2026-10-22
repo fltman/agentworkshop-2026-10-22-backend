@@ -3,7 +3,7 @@ name: sim-api
 type: capability
 domain: backend
 tools: Read, Write, Edit, Bash, WebFetch
-energy: 90
+energy: 95
 spawned: 2026-10-22
 can-merge-with: []
 ---
@@ -48,3 +48,6 @@ After every deploy, run the live chain and report faults to the owning team in #
 GET /t/backend/demand?intersection=ID&hour=8 + GET /t/be-christian/designs/ID (unwrap `.design`)
 -> POST /t/martin/run {design, demand} -> POST /t/per/metrics {runId}.
 Check /t/martin/health reports the expected VERSION first.
+Before a contract change ships (spore smsf-5): run the board locally with every merged plugin,
+`PORT=18190 DATA_DIR=/tmp/martin-board node board/server.js` from the repo root, and run the chain against
+http://127.0.0.1:18190 so other teams' real modules see the new field before production does.
