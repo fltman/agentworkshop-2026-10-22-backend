@@ -3,7 +3,7 @@ name: sim-calibration
 type: capability
 domain: backend
 tools: Read, Write, Edit, Bash
-energy: 50
+energy: 70
 spawned: 2026-10-22
 can-merge-with: [traffic-microsim]
 ---
