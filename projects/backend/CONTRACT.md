@@ -1,6 +1,6 @@
 # Contract: traffic data loader (team backend)
 
-Serves prerecorded Stockholm weekday traffic as **demand** objects in exactly the format the simulation engine
+Serves prerecorded Stockholm weekday and weekend traffic as **demand** objects in exactly the format the simulation engine
 (team martin) takes in `POST /t/martin/run`. Base URL: `/t/backend/`. All responses are JSON; errors are
 `{"error": "..."}` with status 400 (bad input) or 404 (unknown id).
 
@@ -20,15 +20,17 @@ towards the missing north arm). The two generic ones have `lat`/`lon` null and s
 
 ## GET /t/backend/intersections/ID
 
-Summary plus per arm `road` and `adtIn` (inbound vehicles per weekday), `vehPerHourByHour` (24 values per arm)
-and `activeShareByHour` (pedestrian/bicycle share of peak, 24 values). Use it for time-of-day charts.
+Summary plus `days` (`weekday`, `saturday`, `sunday`), per arm `road` and `adtIn` (inbound vehicles per weekday),
+`vehPerHourByHour[arm][day]` (24 values) and `activeShareByHour[day]` (pedestrian/bicycle share of peak, 24 values).
+Use it for time-of-day charts.
 
 ## GET /t/backend/demand
 
 | param | default | range |
 |---|---|---|
 | `intersection` | required | an id from `/intersections` |
-| `hour` | 8 | integer 0–23 (start hour of the recorded weekday) |
+| `day` | `weekday` | `weekday`, `saturday` or `sunday` |
+| `hour` | 8 | integer 0–23 (start hour) |
 | `durationSec` | 900 | integer 60–7200 |
 | `seed` | 42 | integer ≥ 0 |
 | `scale` | 1 | 0–5, multiplies vehicle, pedestrian and bicycle volumes |
@@ -43,11 +45,32 @@ Example: `GET /t/backend/demand?intersection=sveavagen-odengatan&hour=17&duratio
   "W":{"vehPerHour":507,"turning":{"L":0.2,"S":0.6,"R":0.2},"mix":{"car":0.82,"bus":0.09,"truck":0.09},"pedPerHour":850,"bikePerHour":260}}}
 ```
 
-Only the arms the intersection has are included. The body can be passed unchanged as `demand` to `POST /t/martin/run`. UIs that let users tweak volumes, turning
-or mix should fetch this as the baseline and edit the copy; the same `seed` keeps comparisons identical.
+Only the arms the intersection has are included. The body can be passed unchanged as `demand` to `POST /t/martin/run`.
+UIs that let users tweak volumes, turning or mix can use the POST below; the same `seed` keeps comparisons identical.
+
+## POST /t/backend/demand
+
+Same parameters as a JSON body, plus optional `overrides` per arm, for UIs where users change volume, turning, mix
+or pedestrian/bicycle demand. Every field is optional. `turning` and `mix` are normalised to sum to 1, and keys that
+are left out become 0. The answer has the same demand shape as the GET.
+
+```json
+{"intersection":"priority-tjunction","day":"saturday","hour":12,"seed":42,
+ "overrides":{"E":{"vehPerHour":900,"turning":{"L":1,"S":3},"mix":{"car":9,"truck":1}}}}
+```
+
+| override field | range |
+|---|---|
+| `vehPerHour` | integer 0–5000 |
+| `pedPerHour`, `bikePerHour` | integer 0–10000 |
+| `turning` | `{L,S,R}`, non-negative, at least one positive |
+| `mix` | `{car,bus,truck}`, non-negative, at least one positive |
+
+Overriding an arm the intersection lacks, or an unknown field, gives 400.
 
 ## Data
 
 Weekday volumes are estimated from Stockholm stad's published annual average daily traffic per street, spread over
-the day with a typical urban weekday profile. Turning shares, vehicle mix and pedestrian/bicycle peaks are
+the day with a typical urban weekday profile. Saturday and Sunday use typical weekend shares (75 % and 62 % of
+weekday traffic, flatter midday peak). Turning shares, vehicle mix and pedestrian/bicycle peaks are
 assumptions, hence `"estimated": true`. Source data lives in `board/plugins/backend/intersections.json`.

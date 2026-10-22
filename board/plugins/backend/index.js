@@ -3,41 +3,115 @@
 const data = require('./intersections.json');
 
 const ARMS = ['N', 'E', 'S', 'W'];
+const TURNS = ['L', 'S', 'R'];
+const CLASSES = ['car', 'bus', 'truck'];
+const DAYS = Object.keys(data.days);
+const MAX_BODY = 64 * 1024;
 const byId = new Map(data.intersections.map((i) => [i.id, i]));
 const armsOf = (inter) => ARMS.filter((a) => inter.arms[a]);
+const round3 = (x) => Math.round(x * 1000) / 1000;
+
+class BadInput extends Error {}
 
 function send(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
+  return true;
 }
 
-function num(params, key, def, min, max, int) {
-  const raw = params.get(key);
-  if (raw === null || raw === '') return def;
-  const v = Number(raw);
+function num(value, key, def, min, max, int) {
+  if (value === undefined || value === null || value === '') return def;
+  const v = Number(value);
   if (!Number.isFinite(v) || v < min || v > max || (int && !Number.isInteger(v))) {
-    throw new Error(`${key} must be ${int ? 'an integer' : 'a number'} between ${min} and ${max}`);
+    throw new BadInput(`${key} must be ${int ? 'an integer' : 'a number'} between ${min} and ${max}`);
   }
   return v;
 }
 
-const round3 = (x) => Math.round(x * 1000) / 1000;
-
-function armDemand(arm, hour, scale) {
-  const peds = data.activeShare[hour];
+function options(src) {
+  const inter = byId.get(src.intersection);
+  if (!inter) throw new BadInput('intersection must be one of: ' + [...byId.keys()].join(', '));
+  const day = src.day === undefined || src.day === null || src.day === '' ? 'weekday' : src.day;
+  if (!DAYS.includes(day)) throw new BadInput('day must be one of: ' + DAYS.join(', '));
   return {
-    vehPerHour: Math.round(arm.adtIn * data.hourlyShare[hour] * scale),
-    turning: { ...arm.turning },
-    mix: { ...arm.mix },
-    pedPerHour: Math.round(arm.pedPeak * peds * scale),
-    bikePerHour: Math.round(arm.bikePeak * peds * scale),
+    inter,
+    day,
+    hour: num(src.hour, 'hour', 8, 0, 23, true),
+    durationSec: num(src.durationSec, 'durationSec', 900, 60, 7200, true),
+    seed: num(src.seed, 'seed', 42, 0, 2 ** 31 - 1, true),
+    scale: num(src.scale, 'scale', 1, 0, 5, false),
   };
 }
 
-function demand(inter, { hour, durationSec, seed, scale }) {
+function armDemand(arm, profile, hour, scale) {
+  const active = profile.activeShare[hour] * profile.peds;
+  return {
+    vehPerHour: Math.round(arm.adtIn * profile.volume * profile.hourlyShare[hour] * scale),
+    turning: { ...arm.turning },
+    mix: { ...arm.mix },
+    pedPerHour: Math.round(arm.pedPeak * active * scale),
+    bikePerHour: Math.round(arm.bikePeak * active * scale),
+  };
+}
+
+function demand({ inter, day, hour, durationSec, seed, scale }) {
   const arms = {};
-  for (const a of armsOf(inter)) arms[a] = armDemand(inter.arms[a], hour, scale);
+  for (const a of armsOf(inter)) arms[a] = armDemand(inter.arms[a], data.days[day], hour, scale);
   return { durationSec, seed, arms };
+}
+
+function shares(obj, keys, path) {
+  if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new BadInput(`${path} must be an object`);
+  const out = {};
+  for (const k of Object.keys(obj)) {
+    if (!keys.includes(k)) throw new BadInput(`${path}.${k} is not allowed, use ${keys.join('/')}`);
+  }
+  let sum = 0;
+  for (const k of keys) {
+    out[k] = num(obj[k], `${path}.${k}`, 0, 0, 1e6, false);
+    sum += out[k];
+  }
+  if (sum <= 0) throw new BadInput(`${path} must have at least one positive share`);
+  for (const k of keys) out[k] = round3(out[k] / sum);
+  return out;
+}
+
+const ARM_FIELDS = ['vehPerHour', 'turning', 'mix', 'pedPerHour', 'bikePerHour'];
+
+function applyOverrides(d, overrides) {
+  if (overrides === undefined || overrides === null) return d;
+  if (typeof overrides !== 'object' || Array.isArray(overrides)) throw new BadInput('overrides must be an object of arms');
+  for (const [a, o] of Object.entries(overrides)) {
+    const arm = d.arms[a];
+    if (!arm) throw new BadInput(`overrides.${a}: this intersection has arms ${Object.keys(d.arms).join(', ')}`);
+    if (typeof o !== 'object' || o === null || Array.isArray(o)) throw new BadInput(`overrides.${a} must be an object`);
+    for (const k of Object.keys(o)) {
+      if (!ARM_FIELDS.includes(k)) throw new BadInput(`overrides.${a}.${k} is not allowed, use ${ARM_FIELDS.join(', ')}`);
+    }
+    if (o.vehPerHour !== undefined) arm.vehPerHour = num(o.vehPerHour, `overrides.${a}.vehPerHour`, 0, 0, 5000, true);
+    if (o.pedPerHour !== undefined) arm.pedPerHour = num(o.pedPerHour, `overrides.${a}.pedPerHour`, 0, 0, 10000, true);
+    if (o.bikePerHour !== undefined) arm.bikePerHour = num(o.bikePerHour, `overrides.${a}.bikePerHour`, 0, 0, 10000, true);
+    if (o.turning !== undefined) arm.turning = shares(o.turning, TURNS, `overrides.${a}.turning`);
+    if (o.mix !== undefined) arm.mix = shares(o.mix, CLASSES, `overrides.${a}.mix`);
+  }
+  return d;
+}
+
+function readJson(req) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > MAX_BODY) { reject(new BadInput('body too large')); req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', () => {
+      try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}); }
+      catch { reject(new BadInput('body must be JSON')); }
+    });
+    req.on('error', reject);
+  });
 }
 
 function summary(inter) {
@@ -45,57 +119,61 @@ function summary(inter) {
 }
 
 function detail(inter) {
-  const profile = {};
-  for (const a of armsOf(inter)) {
-    profile[a] = data.hourlyShare.map((s) => Math.round(inter.arms[a].adtIn * s));
-  }
   const arms = {};
-  for (const a of armsOf(inter)) arms[a] = { road: inter.arms[a].road, adtIn: inter.arms[a].adtIn };
-  return { ...summary(inter), note: data.note, arms, vehPerHourByHour: profile, activeShareByHour: data.activeShare.map(round3) };
+  const vehPerHourByHour = {};
+  for (const a of armsOf(inter)) {
+    arms[a] = { road: inter.arms[a].road, adtIn: inter.arms[a].adtIn };
+    vehPerHourByHour[a] = {};
+    for (const day of DAYS) {
+      const p = data.days[day];
+      vehPerHourByHour[a][day] = p.hourlyShare.map((s) => Math.round(inter.arms[a].adtIn * p.volume * s));
+    }
+  }
+  const activeShareByHour = {};
+  for (const day of DAYS) activeShareByHour[day] = data.days[day].activeShare.map((s) => round3(s * data.days[day].peds));
+  return { ...summary(inter), note: data.note, days: DAYS, arms, vehPerHourByHour, activeShareByHour };
+}
+
+async function route(req, res, path, params) {
+  if (req.method === 'GET' && (path === '/' || path === '')) {
+    return send(res, 200, {
+      module: 'traffic data loader',
+      endpoints: [
+        'GET /t/backend/intersections',
+        'GET /t/backend/intersections/ID',
+        'GET /t/backend/demand?intersection=ID&day=weekday&hour=8&durationSec=900&seed=42&scale=1',
+        'POST /t/backend/demand {intersection, day, hour, durationSec, seed, scale, overrides}',
+      ],
+      contract: 'projects/backend/CONTRACT.md',
+    });
+  }
+  if (req.method === 'GET' && path === '/intersections') {
+    return send(res, 200, { intersections: data.intersections.map(summary) });
+  }
+  const m = path.match(/^\/intersections\/([a-z0-9-]+)$/);
+  if (req.method === 'GET' && m) {
+    const inter = byId.get(m[1]);
+    return inter ? send(res, 200, detail(inter)) : send(res, 404, { error: `unknown intersection ${m[1]}` });
+  }
+  if (path === '/demand') {
+    if (req.method === 'GET') return send(res, 200, demand(options(Object.fromEntries(params))));
+    if (req.method === 'POST') {
+      const body = await readJson(req);
+      if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new BadInput('body must be a JSON object');
+      return send(res, 200, applyOverrides(demand(options(body)), body.overrides));
+    }
+  }
+  return false;
 }
 
 module.exports = {
   async handle(req, res, { path, url }) {
-    if (req.method !== 'GET') return false;
-    const params = url.searchParams;
-
-    if (path === '/' || path === '') {
-      return send(res, 200, {
-        module: 'traffic data loader',
-        endpoints: ['GET /t/backend/intersections', 'GET /t/backend/intersections/ID', 'GET /t/backend/demand?intersection=ID&hour=8&durationSec=900&seed=42&scale=1'],
-        contract: 'projects/backend/CONTRACT.md',
-      }), true;
+    try {
+      return await route(req, res, path, url.searchParams);
+    } catch (err) {
+      if (err instanceof BadInput) return send(res, 400, { error: err.message });
+      console.error('[backend]', err && err.message);
+      return send(res, 500, { error: 'internal error' });
     }
-
-    if (path === '/intersections') {
-      return send(res, 200, { intersections: data.intersections.map(summary) }), true;
-    }
-
-    const m = path.match(/^\/intersections\/([a-z0-9-]+)$/);
-    if (m) {
-      const inter = byId.get(m[1]);
-      if (!inter) return send(res, 404, { error: `unknown intersection ${m[1]}` }), true;
-      return send(res, 200, detail(inter)), true;
-    }
-
-    if (path === '/demand') {
-      const id = params.get('intersection');
-      const inter = byId.get(id);
-      if (!inter) return send(res, 400, { error: 'intersection must be one of: ' + [...byId.keys()].join(', ') }), true;
-      let opts;
-      try {
-        opts = {
-          hour: num(params, 'hour', 8, 0, 23, true),
-          durationSec: num(params, 'durationSec', 900, 60, 7200, true),
-          seed: num(params, 'seed', 42, 0, 2 ** 31 - 1, true),
-          scale: num(params, 'scale', 1, 0, 5, false),
-        };
-      } catch (err) {
-        return send(res, 400, { error: err.message }), true;
-      }
-      return send(res, 200, demand(inter, opts)), true;
-    }
-
-    return false;
   },
 };
