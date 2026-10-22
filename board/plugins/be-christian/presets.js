@@ -22,13 +22,13 @@ module.exports = [
   },
   {
     id: 'hornsgatan-langholmsgatan', name: 'Hornsgatan / Langholmsgatan (simplified)', origin: 'existing', type: 'signal',
-    location: { lat: 59.3171, lon: 18.0333 },
+    location: { lat: 59.3153, lon: 18.0342 },
     arms: fourArm([lane('L', 'S'), lane('S', 'R')], [lane('L', 'S', 'R')], [lane('L', 'S'), lane('S', 'R')], [lane('L', 'S', 'R')]),
     phases: twoPhase(40, 20), radius: null, bannedMovements: ['E:L'],
   },
   {
     id: 'valhallavagen-birgerjarlsgatan', name: 'Valhallavagen / Birger Jarlsgatan (simplified)', origin: 'existing', type: 'signal',
-    location: { lat: 59.3369, lon: 18.0775 },
+    location: { lat: 59.3501, lon: 18.0591 },
     arms: fourArm([lane('L'), lane('S', 'R')], [lane('L'), lane('S'), lane('S', 'R')], [lane('L', 'S'), lane('R')], [lane('L'), lane('S'), lane('S', 'R')]),
     phases: twoPhase(40, 25), radius: null, bannedMovements: [],
   },

@@ -48,8 +48,12 @@ export const listIntersections = async () => {
   return Array.isArray(r) ? r : (r?.intersections ?? []);
 };
 export const getIntersection = (id) => call('backend', `/intersections/${encodeURIComponent(id)}`);
-export const getDemand = (intersection, hour, durationSec, seed, scale = 1) =>
-  call('backend', '/demand', { query: { intersection, hour, durationSec, seed, scale } });
+export const getDemand = (intersection, hour, durationSec, seed, scale = 1, day = 'weekday') =>
+  call('backend', '/demand', { query: { intersection, day, hour, durationSec, seed, scale } });
+// overrides: { E: { vehPerHour, turning:{L,S,R}, mix:{car,bus,truck}, pedPerHour, bikePerHour } }
+// Backend validates and normalises turning/mix; answer has the same demand shape as getDemand.
+export const postDemand = ({ intersection, day = 'weekday', hour, durationSec, seed, scale = 1, overrides } = {}) =>
+  call('backend', '/demand', { method: 'POST', body: { intersection, day, hour, durationSec, seed, scale, overrides } });
 
 // be-christian (designs); tolerate {design:..} / {designs:[..]} / bare
 const unwrapDesign = (r) => (r && r.design && typeof r.design === 'object' ? r.design : r);

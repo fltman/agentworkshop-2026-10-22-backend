@@ -84,6 +84,14 @@ function buildDesign(lat, lon, elements) {
     bannedMovements: [],
     osm: { roads: {}, attribution: 'Data from OpenStreetMap contributors (ODbL)' },
   };
+  // Road centrelines in metres around the centre (x east, y north), same convention as the simulation engine.
+  design.osm.geometry = ways.map((w) => ({
+    name: (w.tags && w.tags.name) || null,
+    highway: w.tags && w.tags.highway,
+    oneway: !!(w.tags && w.tags.oneway === 'yes'),
+    roundabout: !!(w.tags && w.tags.junction === 'roundabout'),
+    points: w.geometry.map((g) => { const p = toXY(lat, lon, g); return [Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10]; }),
+  }));
   for (const a of names) {
     design.arms[a] = { inLanes: laneTurns(arms[a].lanes) };
     design.osm.roads[a] = { name: arms[a].name, highway: arms[a].hw, lanes: arms[a].lanes };

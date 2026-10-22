@@ -79,3 +79,24 @@ test('single-lane roundabout carries moderate four-way traffic without collision
   }
   assert.ok(overlaps < 20, `vehicles overlapped in ${overlaps} frame pairs`);
 });
+
+test('a two-lane roundabout carries clearly more than a single-lane one', () => {
+  const arms = Object.fromEntries(['N', 'E', 'S', 'W'].map((id) => [id, { vehPerHour: 700, turning: { L: 0.25, S: 0.5, R: 0.25 }, mix: { car: 1 }, pedPerHour: 0, bikePerHour: 0 }]));
+  const mk = (lanes) => ({ ...roundabout, roundabout: { radius: 20, lanes },
+    arms: Object.fromEntries(['N', 'E', 'S', 'W'].map((id) => [id, { inLanes: [{ turns: ['L', 'S'] }, { turns: ['S', 'R'] }], outLanes: 2 }])) });
+  const one = engine.simulate(mk(1), { durationSec: 900, seed: 42, arms }).summary.throughputVehPerHour;
+  const two = engine.simulate(mk(2), { durationSec: 900, seed: 42, arms }).summary.throughputVehPerHour;
+  assert.ok(two > one * 1.3, `two-lane ${two} vs single-lane ${one}`);
+  assert.ok(engine.simulate(mk(3), { durationSec: 60, seed: 1, arms }).errors.some((e) => e.includes('lanes must be 1 or 2')));
+});
+
+test('a demand schedule changes arrival rates from its atSec on, and keeps earlier arrivals', () => {
+  const peak = JSON.parse(JSON.stringify(ex.demand.arms));
+  for (const a of Object.values(peak)) a.vehPerHour *= 2;
+  const flat = engine.simulate(signal, { ...ex.demand, durationSec: 1200 });
+  const ramp = engine.simulate(signal, { ...ex.demand, durationSec: 1200, schedule: [{ atSec: 600, arms: peak }] });
+  const n = (r, lo, hi) => r.events.filter((e) => e.type === 'arrive' && !e.cls && e.t >= lo && e.t < hi).length;
+  assert.equal(n(ramp, 0, 600), n(flat, 0, 600));
+  assert.ok(n(ramp, 600, 1200) > 1.6 * n(flat, 600, 1200), `${n(ramp, 600, 1200)} vs ${n(flat, 600, 1200)}`);
+  assert.ok(engine.simulate(signal, { ...ex.demand, schedule: [{ atSec: 600, arms: peak }, { atSec: 300, arms: peak }] }).errors.some((e) => e.includes('increasing')));
+});
