@@ -7,3 +7,4 @@
 2026-10-22 10:50 ENERGY: sim-calibration 70 (found the roundabout leader and yield bugs, PR #11)
 2026-10-22 11:05 MUTATE: sim-api gains a live chain check (cross-module integration came up three times; chain verified live)
 2026-10-22 11:05 ENERGY: signal-control 90, sim-api 80, sim-calibration 80 (roundabout yield + live chain work)
+2026-10-22 11:08 SPAWN: agents traffic-microsim, signal-control, sim-api, sim-calibration (one invocable subagent per capability, genome stays in capabilities/)
