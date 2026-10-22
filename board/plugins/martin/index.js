@@ -44,7 +44,11 @@ function runPublic(r) {
 }
 
 function doRun(design, demand, options) {
-  const out = engine.simulate(design, demand, options || {});
+  // Keep at most ~1800 stored frames per run so long runs do not exhaust the shared server's memory.
+  const T = Number(demand && demand.durationSec) || 900;
+  const opts = { ...(options || {}) };
+  opts.frameEverySec = Math.max(Math.ceil(T / 1800), Number(opts.frameEverySec) || 1);
+  const out = engine.simulate(design, demand, opts);
   if (out.errors) return { errors: out.errors };
   const runId = `r${Date.now().toString(36)}${(++runCounter).toString(36)}`;
   // Echo the full input design and demand (with defaults filled in) so consumers can check identical demand.

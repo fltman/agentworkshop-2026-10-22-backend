@@ -13,6 +13,20 @@ function leftShare(demand, arm) {
   return a && a.turning && a.turning.L > 0 ? a.turning.L : 0;
 }
 
+// Two-phase plan (N+S, then E+W) with green split in proportion to volume; only existing movements are listed.
+function signalPhases(base, demand, cycle) {
+  const arms = Object.keys(base.arms);
+  const green = (set) => arms.filter((a) => set.includes(a)).flatMap((a) => base.arms[a].inLanes.flatMap((l) => l.turns.map((t) => a + ':' + t)))
+    .filter((m, i, all) => all.indexOf(m) === i && !(base.bannedMovements || []).includes(m));
+  const ns = green(['N', 'S']);
+  const ew = green(['E', 'W']);
+  const fns = flow(demand, 'N') + flow(demand, 'S');
+  const few = flow(demand, 'E') + flow(demand, 'W');
+  if (!ns.length || !ew.length) return [{ durationSec: cycle, green: ns.concat(ew) }];
+  const nsDur = fns + few > 0 ? Math.min(cycle - 10, Math.max(10, Math.round((cycle * fns) / (fns + few)))) : cycle / 2;
+  return [{ durationSec: nsDur, green: ns }, { durationSec: cycle - nsDur, green: ew }];
+}
+
 function variant(base, suffix, name, why) {
   const v = clone(base);
   v.id = (base.id + '-' + suffix).slice(0, 48);
@@ -69,6 +83,27 @@ function suggest(base, demand) {
     v.radius = Math.max(20, base.type === 'roundabout' ? base.radius || 0 : 0);
     v.roundabout = { radius: v.radius, lanes: 2 };
     v.phases = null;
+    out.push(v);
+  }
+  if (base.type !== 'signal' && arms.length >= 3) {
+    const v = variant(base, 'tosignal', base.name + ' (converted to signals)', 'Signal control with a 60 s cycle split in proportion to N+S vs E+W volume.');
+    v.type = 'signal';
+    v.radius = null;
+    delete v.roundabout;
+    v.phases = signalPhases(base, demand, 60);
+    if (v.phases.length) out.push(v);
+  }
+  if (base.type !== 'priority' && arms.length >= 3) {
+    const ranked = arms.slice().sort((a, b) => flow(demand, b) - flow(demand, a));
+    const opposite = { N: 'S', S: 'N', E: 'W', W: 'E' };
+    const first = ranked[0];
+    const major = arms.includes(opposite[first]) ? [first, opposite[first]] : [first, ranked[1]];
+    const v = variant(base, 'topriority', base.name + ' (converted to priority junction)', 'Give-way control; major road ' + major.join('/') + ' (busiest approaches).');
+    v.type = 'priority';
+    v.radius = null;
+    v.phases = null;
+    delete v.roundabout;
+    v.priority = { major };
     out.push(v);
   }
   if (base.type === 'roundabout') {

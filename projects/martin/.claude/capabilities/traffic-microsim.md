@@ -42,3 +42,12 @@ Does NOT handle: signal timing logic (signal-control), HTTP/contract (sim-api), 
 ## Evolution History
 
 - 2026-10-22: Spawned at awakening (team claimed simulation engine)
+
+## Mutation 2026-10-22 11:32: two-lane ring and time-varying arrivals
+
+- Ring: `roundabout.lanes` 2 puts the leftmost entry lane of multi-lane arms on an inner ring (radius - laneWidth).
+  Tracks are `ring0`, `ring1`, `ringbike`; each path has `ringLane` and `ringR`. Use `p.ringR`, never
+  `design.radius`, for arc distances. A cross-lane leader rule was tried and made overlaps and capacity worse: measure first.
+- Arrivals: `demand.steps` (from `schedule`) are piecewise-constant Poisson rates per arm and stream, one rng per
+  `arm:kind`, so arrivals before a step equal the flat run. Vehicles read turning and mix from `dSteps[r.step]`.
+- Long runs: the HTTP layer caps stored frames at about 1800 per run; keep that when adding output.

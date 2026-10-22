@@ -5,6 +5,9 @@ const PRESETS = require('./presets');
 const { suggest } = require('./suggest');
 const { fromOsm } = require('./osm');
 
+const BEARING_RETRY_MS = 5 * 60 * 1000;
+let lastBearingFail = 0;
+
 async function postJson(port, urlPath, body) {
   const res = await fetch('http://127.0.0.1:' + port + urlPath, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(90000),
@@ -37,6 +40,12 @@ function validate(d) {
   for (const a of Object.keys(arms)) {
     if (!ARMS.includes(a)) { errors.push('unknown arm ' + a); continue; }
     armCount++;
+    const bd = arms[a] && arms[a].bearingDeg;
+    if (bd !== undefined) {
+      const label = { N: 0, E: 90, S: 180, W: 270 }[a];
+      const diff = Math.abs(bd - label) % 360;
+      if (typeof bd !== 'number' || !(bd >= 0 && bd < 360) || Math.min(diff, 360 - diff) > 60) errors.push(a + ': bearingDeg must be 0-359 and within 60 degrees of the arm label');
+    }
     const lanes = arms[a] && arms[a].inLanes;
     if (!Array.isArray(lanes) || lanes.length < 1 || lanes.length > 6) { errors.push(a + ': inLanes needs 1-6 lanes'); continue; }
     lanes.forEach((l, i) => {
@@ -45,6 +54,11 @@ function validate(d) {
     });
   }
   if (armCount < 3) errors.push('at least 3 arms required');
+  const withB = ARMS.filter((a) => arms[a] && typeof arms[a].bearingDeg === 'number');
+  for (let i = 0; i < withB.length; i++) for (let j = i + 1; j < withB.length; j++) {
+    const x = Math.abs(arms[withB[i]].bearingDeg - arms[withB[j]].bearingDeg) % 360;
+    if (Math.min(x, 360 - x) < 30) errors.push('arms ' + withB[i] + ' and ' + withB[j] + ' must be at least 30 degrees apart');
+  }
   if (d.bannedMovements !== undefined) {
     if (!Array.isArray(d.bannedMovements)) errors.push('bannedMovements must be an array');
     else d.bannedMovements.forEach((m) => { if (!movements.has(m)) errors.push('bannedMovements: unknown movement ' + m); });
@@ -67,6 +81,7 @@ function validate(d) {
 
 module.exports = {
   init(ctx) {
+    this.dataRoot = ctx.dataDir;
     this.dir = path.join(ctx.dataDir, 'designs');
     fs.mkdirSync(this.dir, { recursive: true });
   },
@@ -81,6 +96,34 @@ module.exports = {
   },
 
   all() { return PRESETS.concat(this.userDesigns()); },
+
+  loadBearings() {
+    try { return JSON.parse(fs.readFileSync(path.join(this.dataRoot, 'bearings.json'), 'utf8')); } catch (e) { return {}; }
+  },
+
+  // Adds real street bearings (from OpenStreetMap, cached on disk) to a preset when they are known.
+  async withBearings(d) {
+    if (!d.location || d.origin !== 'existing') return d;
+    const cache = this.loadBearings();
+    // Fetch in the background so a slow Overpass never delays the design request; the next call gets the bearings.
+    if (!cache[d.id] && !this.fetching && Date.now() - lastBearingFail > BEARING_RETRY_MS) {
+      this.fetching = true;
+      fromOsm(d.location.lat, d.location.lon).then((out) => {
+        if (out.error) { lastBearingFail = Date.now(); return; }
+        const c = this.loadBearings();
+        c[d.id] = {};
+        for (const a of Object.keys(out.design.arms)) if (out.design.arms[a].bearingDeg !== undefined) c[d.id][a] = out.design.arms[a].bearingDeg;
+        fs.writeFileSync(path.join(this.dataRoot, 'bearings.json'), JSON.stringify(c));
+      }).catch((e) => { lastBearingFail = Date.now(); console.error('[be-christian]', e && e.message); })
+        .finally(() => { this.fetching = false; });
+    }
+    const b = cache[d.id];
+    if (!b) return d;
+    const v = JSON.parse(JSON.stringify(d));
+    for (const a of Object.keys(v.arms)) if (b[a] !== undefined) v.arms[a].bearingDeg = b[a];
+    if (validate(v).length) return d;
+    return v;
+  },
 
   async handle(req, res, ctx) {
     const send = (code, obj) => {
@@ -116,7 +159,7 @@ module.exports = {
       const m = p.match(/^\/designs\/([a-z0-9-]+)$/);
       if (req.method === 'GET' && m) {
         const d = this.all().find((x) => x.id === m[1]);
-        return d ? send(200, d) : send(404, { error: 'not found' });
+        return d ? send(200, await this.withBearings(d)) : send(404, { error: 'not found' });
       }
       if (req.method === 'DELETE' && m) {
         const file = path.join(this.dir, m[1] + '.json');
