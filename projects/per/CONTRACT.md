@@ -27,3 +27,6 @@ Each run keeps `design.origin` (existing|user).
 List of metrics computed so far.
 
 Definitions: delay = delaySec on exit events; throughput = exit count; stopped = vehicles with stops > 0; queue from `q` in frames; emissions = sum of co2G.
+
+## GET /t/per/realflows?intersection=ID
+Measured Stockholm flows near a junction, extracted from the open GPKG flow maps (motor within 150 m, bike/ped within 400 m). Without `intersection`: the list of available ids. Fields: `motor[]` {street, distM, adtAllDirections, heavyShare, veh06_18, veh18_22, veh22_06}, `bike[]`/`ped[]` {street, distM, weekdayFlow, year}. Ids match /t/backend/intersections (4 of the 6 have data; bike/ped only cover the inner city). Use it to replace estimated demand or to sanity-check simulated throughput.
