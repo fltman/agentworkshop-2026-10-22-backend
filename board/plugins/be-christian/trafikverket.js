@@ -24,7 +24,11 @@ async function flowNear(lat, lon, radiusM) {
   } catch (e) {
     return { status: 502, error: 'Trafikverket unreachable' };
   }
-  if (!res.ok) return { status: 502, error: 'Trafikverket answered ' + res.status };
+  if (!res.ok) {
+    let msg = '';
+    try { const j = await res.json(); const e = j.RESPONSE.RESULT[0].ERROR; msg = ' ' + String(e.MESSAGE || e).slice(0, 200).split(key).join('***'); } catch (e) { /* no error body */ }
+    return { status: 502, error: 'Trafikverket answered ' + res.status + msg };
+  }
   let json;
   try { json = await res.json(); } catch (e) { return { status: 502, error: 'Trafikverket sent invalid JSON' }; }
   const r = json && json.RESPONSE && json.RESPONSE.RESULT && json.RESPONSE.RESULT[0];
