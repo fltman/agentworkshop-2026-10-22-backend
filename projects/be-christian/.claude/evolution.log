@@ -3,3 +3,7 @@
 2026-10-22 10:05 SPAWN: design-compare (need: compare designs under identical traffic)
 2026-10-22 10:08 DISSOLVE: metrics-engine, design-compare (per claimed metrics+comparison first)
 2026-10-22 10:08 SPAWN: design-library (need: intersection design module presets, user designs, validation)
+2026-10-22 10:40 SPAWN: design-suggester (need: demand-based design variants after backend reported saturated presets)
+2026-10-22 10:40 MUTATE: design-library energy 50->70 (shipped presets, validation, storage)
+2026-10-22 11:00 SPAWN: osm-geometry (need: optional Overpass reference, draft designs from real OSM roads)
+2026-10-22 11:00 SPAWN: agents/design-library, design-suggester, osm-geometry (human asked for one real agent per capability)
