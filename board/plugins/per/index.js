@@ -88,7 +88,7 @@ async function metricsFor(runId) {
   const durationSec = meta.durationSec || (meta.demand && meta.demand.durationSec);
   const out = Object.assign(
     { runId, design: meta.design || null, demand: meta.demand || null },
-    computeMetrics(ev.events, frames, durationSec)
+    computeMetrics(ev.events, frames, durationSec, meta.summary)
   );
   out.calibration = calibrationFor(out);
   cache.set(runId, out);

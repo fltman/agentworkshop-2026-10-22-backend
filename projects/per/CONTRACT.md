@@ -33,3 +33,6 @@ Measured Stockholm flows near a junction, extracted from the open GPKG flow maps
 
 ## calibration (in POST /t/per/metrics and each run in /compare)
 When the run's design id has measured flows (see realflows), the metrics carry `calibration`: `observedInboundVehPerHour` (busiest segment per street within 60 m, 06-18 average), `demandVehPerHour` (sum of arm demand), `simulatedThroughputPerHour`, and the ratios `demandVsObserved` and `throughputVsObserved` (about 1 means realistic). Otherwise `calibration` is null. Indicative only.
+
+## Delay fields (changed for engine 0.5)
+`delay.avgSec` stays the mean over EXITED vehicles. New: `delay.meanSec` = mean delay including unserved vehicles (martin summary.delay.meanSec, falls back to avgSec on older runs), `delay.unservedShare`, and `vehicles` {generated, exited, inNetwork, backlog}. `best.delay` and `ranking` now use `meanSec`, so a design that leaves traffic unserved no longer wins on delay.

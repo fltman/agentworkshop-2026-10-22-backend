@@ -23,7 +23,9 @@
 <div id="out"></div>
 <script>
 const ROWS = [
-  ['Avg delay (s)', r => r.delay.avgSec, 'delay'],
+  ['Mean delay incl. unserved (s)', r => r.delay.meanSec, 'delay'],
+  ['Delay, exited only (s)', r => r.delay.avgSec],
+  ['Unserved share', r => (r.delay.unservedShare == null ? 'n/a' : r.delay.unservedShare)],
   ['P95 delay (s)', r => r.delay.p95Sec],
   ['Max queue (veh)', r => Math.max(0, ...Object.values(r.queue.maxByArm)), 'queue'],
   ['Throughput (veh)', r => r.throughput.vehicles, 'throughput'],
