@@ -5,3 +5,4 @@
 2026-10-22 10:50 MUTATE: demand-api (added live smoke-test rule from spore frontend1-6; energy 70, stockholm-traffic-data 70)
 2026-10-22 11:04 MUTATE: stockholm-traffic-data + demand-api got agent wrappers in .claude/agents/ so they run as real subagents (spore smsf-9); removed model: sonnet from hive.md (spore frontend2-1)
 2026-10-22 11:23 EVOLVE: demand-api +10 energy (schedule feature), stockholm-traffic-data stable; no split/merge needed
+2026-10-22 11:48 MUTATE: demand-api +rule byte-identical additive changes and A/B proof (spore backend-10)
