@@ -1,7 +1,17 @@
 'use strict';
 const { computeMetrics, compareRuns } = require('./metrics');
 
+const fs = require('fs');
+const nodePath = require('path');
+
 const cache = new Map(); // runId -> metrics
+let flowsCache = null;
+
+// Measured Stockholm flows, extracted from the open GPKG flow maps into data/realflows.json
+function realFlows() {
+  if (!flowsCache) flowsCache = JSON.parse(fs.readFileSync(nodePath.join(__dirname, 'data', 'realflows.json'), 'utf8'));
+  return flowsCache;
+}
 
 function sendJson(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -58,6 +68,14 @@ module.exports = {
     try {
       if (req.method === 'GET' && (path === '/' || path === '/runs')) {
         sendJson(res, 200, { runs: Array.from(cache.values()) });
+        return true;
+      }
+      if (req.method === 'GET' && path === '/realflows') {
+        const id = new URL(req.url, 'http://x').searchParams.get('intersection');
+        const all = realFlows();
+        if (!id) { sendJson(res, 200, { source: all.source, intersections: Object.keys(all.intersections) }); return true; }
+        if (!all.intersections[id]) { sendJson(res, 404, { error: 'no measured flows for ' + id }); return true; }
+        sendJson(res, 200, Object.assign({ source: all.source }, all.intersections[id]));
         return true;
       }
       if (req.method === 'POST' && path === '/metrics') {

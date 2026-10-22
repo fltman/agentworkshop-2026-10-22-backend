@@ -1,0 +1,772 @@
+{
+ "source": "Stockholm stad / NVDB open traffic flow maps (GPKG, SWEREF99 18 00), extract: motor within 150 m, bike/ped within 400 m",
+ "intersections": {
+  "sveavagen-odengatan": {
+   "name": "Sveavägen / Odengatan",
+   "lat": 59.344,
+   "lon": 18.0556,
+   "motor": [
+    {
+     "street": "Sveavägen",
+     "distM": 4,
+     "adtAllDirections": 21700,
+     "heavyShare": 0.08,
+     "veh06_18": 15717,
+     "veh18_22": 3715,
+     "veh22_06": 2269
+    },
+    {
+     "street": "Markvardsgatan",
+     "distM": 106,
+     "adtAllDirections": 300,
+     "heavyShare": 0.08,
+     "veh06_18": 217,
+     "veh18_22": 51,
+     "veh22_06": 32
+    },
+    {
+     "street": "Sveavägen",
+     "distM": 15,
+     "adtAllDirections": 21700,
+     "heavyShare": 0.08,
+     "veh06_18": 15716,
+     "veh18_22": 3714,
+     "veh22_06": 2269
+    },
+    {
+     "street": "Surbrunnsgatan",
+     "distM": 91,
+     "adtAllDirections": 1733,
+     "heavyShare": 0.08,
+     "veh06_18": 1255,
+     "veh18_22": 297,
+     "veh22_06": 181
+    },
+    {
+     "street": "Döbelnsgatan",
+     "distM": 144,
+     "adtAllDirections": 764,
+     "heavyShare": 0.08,
+     "veh06_18": 553,
+     "veh18_22": 130,
+     "veh22_06": 79
+    },
+    {
+     "street": "Odengatan",
+     "distM": 83,
+     "adtAllDirections": 15000,
+     "heavyShare": 0.08,
+     "veh06_18": 10864,
+     "veh18_22": 2567,
+     "veh22_06": 1568
+    },
+    {
+     "street": "Surbrunnsgatan",
+     "distM": 91,
+     "adtAllDirections": 3700,
+     "heavyShare": 0.06,
+     "veh06_18": 2680,
+     "veh18_22": 633,
+     "veh22_06": 387
+    },
+    {
+     "street": "Sveavägen",
+     "distM": 106,
+     "adtAllDirections": 22500,
+     "heavyShare": 0.08,
+     "veh06_18": 16296,
+     "veh18_22": 3851,
+     "veh22_06": 2352
+    },
+    {
+     "street": "Odengatan",
+     "distM": 144,
+     "adtAllDirections": 15196,
+     "heavyShare": 0.08,
+     "veh06_18": 11005,
+     "veh18_22": 2601,
+     "veh22_06": 1589
+    },
+    {
+     "street": "Odengatan",
+     "distM": 4,
+     "adtAllDirections": 15250,
+     "heavyShare": 0.1,
+     "veh06_18": 11045,
+     "veh18_22": 2610,
+     "veh22_06": 1595
+    },
+    {
+     "street": "Luntmakargatan",
+     "distM": 83,
+     "adtAllDirections": 267,
+     "heavyShare": 0.08,
+     "veh06_18": 193,
+     "veh18_22": 46,
+     "veh22_06": 28
+    },
+    {
+     "street": "Sveavägen",
+     "distM": 4,
+     "adtAllDirections": 18068,
+     "heavyShare": 0.08,
+     "veh06_18": 13086,
+     "veh18_22": 3092,
+     "veh22_06": 1889
+    },
+    {
+     "street": "Sveavägen",
+     "distM": 91,
+     "adtAllDirections": 18068,
+     "heavyShare": 0.09,
+     "veh06_18": 13086,
+     "veh18_22": 3092,
+     "veh22_06": 1889
+    },
+    {
+     "street": "Markvardsgatan",
+     "distM": 106,
+     "adtAllDirections": 300,
+     "heavyShare": 0.08,
+     "veh06_18": 217,
+     "veh18_22": 51,
+     "veh22_06": 32
+    },
+    {
+     "street": "Odengatan",
+     "distM": 142,
+     "adtAllDirections": 15250,
+     "heavyShare": 0.1,
+     "veh06_18": 11045,
+     "veh18_22": 2610,
+     "veh22_06": 1595
+    },
+    {
+     "street": "Odengatan",
+     "distM": 4,
+     "adtAllDirections": 15000,
+     "heavyShare": 0.09,
+     "veh06_18": 10864,
+     "veh18_22": 2568,
+     "veh22_06": 1569
+    },
+    {
+     "street": "Markvardsgatan",
+     "distM": 131,
+     "adtAllDirections": 667,
+     "heavyShare": 0.08,
+     "veh06_18": 483,
+     "veh18_22": 114,
+     "veh22_06": 70
+    },
+    {
+     "street": "Sveavägen",
+     "distM": 106,
+     "adtAllDirections": 18068,
+     "heavyShare": 0.09,
+     "veh06_18": 13086,
+     "veh18_22": 3092,
+     "veh22_06": 1889
+    },
+    {
+     "street": "Luntmakargatan",
+     "distM": 131,
+     "adtAllDirections": 733,
+     "heavyShare": 0.08,
+     "veh06_18": 530,
+     "veh18_22": 125,
+     "veh22_06": 77
+    },
+    {
+     "street": "Döbelnsgatan",
+     "distM": 144,
+     "adtAllDirections": 667,
+     "heavyShare": 0.08,
+     "veh06_18": 483,
+     "veh18_22": 114,
+     "veh22_06": 70
+    }
+   ],
+   "bike": [
+    {
+     "street": "Drottninggatan",
+     "distM": 390,
+     "weekdayFlow": 600,
+     "year": 2017
+    }
+   ],
+   "ped": [
+    {
+     "street": "Sveavägen",
+     "distM": 316,
+     "weekdayFlow": 22000,
+     "year": 2017
+    },
+    {
+     "street": "Drottninggatan",
+     "distM": 390,
+     "weekdayFlow": 7500,
+     "year": 2017
+    }
+   ]
+  },
+  "valhallavagen-birgerjarlsgatan": {
+   "name": "Valhallavägen / Birger Jarlsgatan",
+   "lat": 59.3501,
+   "lon": 18.0591,
+   "motor": [
+    {
+     "street": "Ingemarsgatan",
+     "distM": 58,
+     "adtAllDirections": 2134,
+     "heavyShare": 0.08,
+     "veh06_18": 1546,
+     "veh18_22": 365,
+     "veh22_06": 223
+    },
+    {
+     "street": "Valhallavägen",
+     "distM": 33,
+     "adtAllDirections": 300,
+     "heavyShare": 0.08,
+     "veh06_18": 217,
+     "veh18_22": 51,
+     "veh22_06": 32
+    },
+    {
+     "street": "Okänd gata",
+     "distM": 117,
+     "adtAllDirections": 16700,
+     "heavyShare": 0.09,
+     "veh06_18": 14268,
+     "veh18_22": 3372,
+     "veh22_06": 2059
+    },
+    {
+     "street": "Valhallavägen",
+     "distM": 28,
+     "adtAllDirections": 24400,
+     "heavyShare": 0.08,
+     "veh06_18": 17672,
+     "veh18_22": 4177,
+     "veh22_06": 2551
+    },
+    {
+     "street": "Valhallavägen",
+     "distM": 33,
+     "adtAllDirections": 300,
+     "heavyShare": 0.08,
+     "veh06_18": 217,
+     "veh18_22": 51,
+     "veh22_06": 32
+    },
+    {
+     "street": "Valhallavägen",
+     "distM": 26,
+     "adtAllDirections": 300,
+     "heavyShare": 0.08,
+     "veh06_18": 217,
+     "veh18_22": 51,
+     "veh22_06": 32
+    },
+    {
+     "street": "Ingemarsgatan",
+     "distM": 53,
+     "adtAllDirections": 2134,
+     "heavyShare": 0.08,
+     "veh06_18": 1546,
+     "veh18_22": 365,
+     "veh22_06": 223
+    },
+    {
+     "street": "Valhallavägen",
+     "distM": 87,
+     "adtAllDirections": 300,
+     "heavyShare": 0.08,
+     "veh06_18": 217,
+     "veh18_22": 51,
+     "veh22_06": 32
+    },
+    {
+     "street": "Roslagsgatan",
+     "distM": 144,
+     "adtAllDirections": 2134,
+     "heavyShare": 0.08,
+     "veh06_18": 1546,
+     "veh18_22": 365,
+     "veh22_06": 223
+    },
+    {
+     "street": "Ingemarsgatan",
+     "distM": 28,
+     "adtAllDirections": 8551,
+     "heavyShare": 0.08,
+     "veh06_18": 6193,
+     "veh18_22": 1464,
+     "veh22_06": 895
+    },
+    {
+     "street": "Roslagstullsbacken",
+     "distM": 33,
+     "adtAllDirections": 300,
+     "heavyShare": 0.06,
+     "veh06_18": 218,
+     "veh18_22": 51,
+     "veh22_06": 31
+    },
+    {
+     "street": "Birger Jarlsgatan",
+     "distM": 50,
+     "adtAllDirections": 15135,
+     "heavyShare": 0.08,
+     "veh06_18": 10962,
+     "veh18_22": 2591,
+     "veh22_06": 1583
+    },
+    {
+     "street": "Birger Jarlsgatan",
+     "distM": 115,
+     "adtAllDirections": 20000,
+     "heavyShare": 0.08,
+     "veh06_18": 18759,
+     "veh18_22": 4434,
+     "veh22_06": 2708
+    },
+    {
+     "street": "Valhallavägen",
+     "distM": 29,
+     "adtAllDirections": 300,
+     "heavyShare": 0.08,
+     "veh06_18": 217,
+     "veh18_22": 51,
+     "veh22_06": 32
+    },
+    {
+     "street": "Okänd gata",
+     "distM": 26,
+     "adtAllDirections": 16700,
+     "heavyShare": 0.09,
+     "veh06_18": 14268,
+     "veh18_22": 3372,
+     "veh22_06": 2059
+    },
+    {
+     "street": "Valhallavägen",
+     "distM": 4,
+     "adtAllDirections": 16700,
+     "heavyShare": 0.14,
+     "veh06_18": 7823,
+     "veh18_22": 1849,
+     "veh22_06": 1129
+    },
+    {
+     "street": "Valhallavägen",
+     "distM": 84,
+     "adtAllDirections": 300,
+     "heavyShare": 0.08,
+     "veh06_18": 217,
+     "veh18_22": 51,
+     "veh22_06": 32
+    },
+    {
+     "street": "Birger Jarlsgatan",
+     "distM": 53,
+     "adtAllDirections": 15135,
+     "heavyShare": 0.08,
+     "veh06_18": 10962,
+     "veh18_22": 2591,
+     "veh22_06": 1583
+    },
+    {
+     "street": "Okänd gata",
+     "distM": 8,
+     "adtAllDirections": 16700,
+     "heavyShare": 0.09,
+     "veh06_18": 14268,
+     "veh18_22": 3372,
+     "veh22_06": 2059
+    },
+    {
+     "street": "Valhallavägen",
+     "distM": 84,
+     "adtAllDirections": 16529,
+     "heavyShare": 0.12,
+     "veh06_18": 12761,
+     "veh18_22": 2414,
+     "veh22_06": 1354
+    },
+    {
+     "street": "Valhallavägen",
+     "distM": 28,
+     "adtAllDirections": 16529,
+     "heavyShare": 0.12,
+     "veh06_18": 12761,
+     "veh18_22": 2414,
+     "veh22_06": 1354
+    }
+   ],
+   "bike": [],
+   "ped": []
+  },
+  "hornsgatan-langholmsgatan": {
+   "name": "Hornsgatan / Långholmsgatan (Hornstull)",
+   "lat": 59.3157,
+   "lon": 18.0339,
+   "motor": [
+    {
+     "street": "Långholmsgatan",
+     "distM": 35,
+     "adtAllDirections": 28000,
+     "heavyShare": 0.07,
+     "veh06_18": 11405,
+     "veh18_22": 2624,
+     "veh22_06": 971
+    },
+    {
+     "street": "Hornsgatan",
+     "distM": 51,
+     "adtAllDirections": 22800,
+     "heavyShare": 0.08,
+     "veh06_18": 17336,
+     "veh18_22": 3988,
+     "veh22_06": 1476
+    },
+    {
+     "street": "Hornstull",
+     "distM": 47,
+     "adtAllDirections": 31000,
+     "heavyShare": 0.12,
+     "veh06_18": 10417,
+     "veh18_22": 2397,
+     "veh22_06": 886
+    },
+    {
+     "street": "Hornstull",
+     "distM": 67,
+     "adtAllDirections": 31000,
+     "heavyShare": 0.12,
+     "veh06_18": 13230,
+     "veh18_22": 3043,
+     "veh22_06": 1126
+    },
+    {
+     "street": "Hornsgatan",
+     "distM": 55,
+     "adtAllDirections": 22800,
+     "heavyShare": 0.08,
+     "veh06_18": 17336,
+     "veh18_22": 3988,
+     "veh22_06": 1476
+    },
+    {
+     "street": "Liljeholmsbron",
+     "distM": 137,
+     "adtAllDirections": 31000,
+     "heavyShare": 0.12,
+     "veh06_18": 13230,
+     "veh18_22": 3043,
+     "veh22_06": 1126
+    },
+    {
+     "street": "Långholmsgatan",
+     "distM": 34,
+     "adtAllDirections": 28000,
+     "heavyShare": 0.07,
+     "veh06_18": 9885,
+     "veh18_22": 2274,
+     "veh22_06": 842
+    },
+    {
+     "street": "Långholmsgatan",
+     "distM": 131,
+     "adtAllDirections": 28000,
+     "heavyShare": 0.1,
+     "veh06_18": 21289,
+     "veh18_22": 4898,
+     "veh22_06": 1812
+    },
+    {
+     "street": "Hornsbruksgatan",
+     "distM": 85,
+     "adtAllDirections": 2900,
+     "heavyShare": 0.1,
+     "veh06_18": 2205,
+     "veh18_22": 507,
+     "veh22_06": 187
+    },
+    {
+     "street": "Hornstull",
+     "distM": 62,
+     "adtAllDirections": 31000,
+     "heavyShare": 0.12,
+     "veh06_18": 10417,
+     "veh18_22": 2397,
+     "veh22_06": 886
+    },
+    {
+     "street": "Folkskolegatan",
+     "distM": 110,
+     "adtAllDirections": 1700,
+     "heavyShare": 0.1,
+     "veh06_18": 1292,
+     "veh18_22": 298,
+     "veh22_06": 110
+    },
+    {
+     "street": "Hornsgatan",
+     "distM": 48,
+     "adtAllDirections": 1700,
+     "heavyShare": 0.1,
+     "veh06_18": 1292,
+     "veh18_22": 298,
+     "veh22_06": 110
+    },
+    {
+     "street": "Bergsunds Strand",
+     "distM": 30,
+     "adtAllDirections": 4400,
+     "heavyShare": 0.1,
+     "veh06_18": 3345,
+     "veh18_22": 770,
+     "veh22_06": 285
+    },
+    {
+     "street": "Liljeholmsbron",
+     "distM": 124,
+     "adtAllDirections": 31000,
+     "heavyShare": 0.12,
+     "veh06_18": 10417,
+     "veh18_22": 2397,
+     "veh22_06": 886
+    },
+    {
+     "street": "Långholmsgatan",
+     "distM": 12,
+     "adtAllDirections": 28000,
+     "heavyShare": 0.1,
+     "veh06_18": 11406,
+     "veh18_22": 2624,
+     "veh22_06": 971
+    },
+    {
+     "street": "Långholmsgatan",
+     "distM": 30,
+     "adtAllDirections": 28000,
+     "heavyShare": 0.1,
+     "veh06_18": 21289,
+     "veh18_22": 4898,
+     "veh22_06": 1812
+    },
+    {
+     "street": "Långholmsgatan",
+     "distM": 7,
+     "adtAllDirections": 28000,
+     "heavyShare": 0.1,
+     "veh06_18": 9884,
+     "veh18_22": 2274,
+     "veh22_06": 841
+    },
+    {
+     "street": "Borgargatan",
+     "distM": 85,
+     "adtAllDirections": 1400,
+     "heavyShare": 0.1,
+     "veh06_18": 1064,
+     "veh18_22": 245,
+     "veh22_06": 91
+    },
+    {
+     "street": "Hornsgatan",
+     "distM": 47,
+     "adtAllDirections": 5000,
+     "heavyShare": 0.07,
+     "veh06_18": 3802,
+     "veh18_22": 875,
+     "veh22_06": 324
+    },
+    {
+     "street": "Långholmsgatan",
+     "distM": 114,
+     "adtAllDirections": 28000,
+     "heavyShare": 0.1,
+     "veh06_18": 21289,
+     "veh18_22": 4898,
+     "veh22_06": 1812
+    },
+    {
+     "street": "Hornstull",
+     "distM": 51,
+     "adtAllDirections": 31000,
+     "heavyShare": 0.12,
+     "veh06_18": 13230,
+     "veh18_22": 3043,
+     "veh22_06": 1126
+    },
+    {
+     "street": "Hornsgatan",
+     "distM": 47,
+     "adtAllDirections": 1700,
+     "heavyShare": 0.1,
+     "veh06_18": 1292,
+     "veh18_22": 298,
+     "veh22_06": 110
+    },
+    {
+     "street": "Bergsunds Strand",
+     "distM": 32,
+     "adtAllDirections": 4400,
+     "heavyShare": 0.1,
+     "veh06_18": 3345,
+     "veh18_22": 770,
+     "veh22_06": 285
+    }
+   ],
+   "bike": [],
+   "ped": []
+  },
+  "fridhemsplan": {
+   "name": "Fridhemsplan",
+   "lat": 59.3334,
+   "lon": 18.0298,
+   "motor": [
+    {
+     "street": "Fridhemsgatan",
+     "distM": 137,
+     "adtAllDirections": 1822,
+     "heavyShare": 0.08,
+     "veh06_18": 1320,
+     "veh18_22": 312,
+     "veh22_06": 190
+    },
+    {
+     "street": "Fridhemsgatan",
+     "distM": 147,
+     "adtAllDirections": 1822,
+     "heavyShare": 0.08,
+     "veh06_18": 1320,
+     "veh18_22": 312,
+     "veh22_06": 190
+    },
+    {
+     "street": "Sankt Göransgatan",
+     "distM": 126,
+     "adtAllDirections": 1455,
+     "heavyShare": 0.08,
+     "veh06_18": 1054,
+     "veh18_22": 249,
+     "veh22_06": 152
+    },
+    {
+     "street": "Sankt Göransgatan",
+     "distM": 107,
+     "adtAllDirections": 2200,
+     "heavyShare": 0.12,
+     "veh06_18": 1594,
+     "veh18_22": 376,
+     "veh22_06": 230
+    },
+    {
+     "street": "Fridhemsgatan",
+     "distM": 8,
+     "adtAllDirections": 2000,
+     "heavyShare": 0.08,
+     "veh06_18": 1449,
+     "veh18_22": 342,
+     "veh22_06": 209
+    },
+    {
+     "street": "Sankt Eriksgatan",
+     "distM": 116,
+     "adtAllDirections": 25800,
+     "heavyShare": 0.08,
+     "veh06_18": 18686,
+     "veh18_22": 4416,
+     "veh22_06": 2698
+    },
+    {
+     "street": "Drottningholmsvägen",
+     "distM": 148,
+     "adtAllDirections": 26000,
+     "heavyShare": 0.08,
+     "veh06_18": 9560,
+     "veh18_22": 2260,
+     "veh22_06": 1380
+    },
+    {
+     "street": "Sankt Eriksgatan",
+     "distM": 115,
+     "adtAllDirections": 25800,
+     "heavyShare": 0.08,
+     "veh06_18": 18686,
+     "veh18_22": 4416,
+     "veh22_06": 2698
+    },
+    {
+     "street": "Drottningholmsvägen",
+     "distM": 138,
+     "adtAllDirections": 26000,
+     "heavyShare": 0.08,
+     "veh06_18": 9560,
+     "veh18_22": 2260,
+     "veh22_06": 1380
+    },
+    {
+     "street": "Sankt Göransgatan",
+     "distM": 17,
+     "adtAllDirections": 2200,
+     "heavyShare": 0.12,
+     "veh06_18": 1594,
+     "veh18_22": 376,
+     "veh22_06": 230
+    },
+    {
+     "street": "Arbetargatan",
+     "distM": 126,
+     "adtAllDirections": 300,
+     "heavyShare": 0.08,
+     "veh06_18": 217,
+     "veh18_22": 51,
+     "veh22_06": 32
+    },
+    {
+     "street": "Sankt Eriksgatan",
+     "distM": 115,
+     "adtAllDirections": 25800,
+     "heavyShare": 0.08,
+     "veh06_18": 18686,
+     "veh18_22": 4416,
+     "veh22_06": 2698
+    },
+    {
+     "street": "Fridhemsgatan",
+     "distM": 17,
+     "adtAllDirections": 2050,
+     "heavyShare": 0.12,
+     "veh06_18": 1485,
+     "veh18_22": 351,
+     "veh22_06": 215
+    },
+    {
+     "street": "Sankt Göransgatan",
+     "distM": 17,
+     "adtAllDirections": 1500,
+     "heavyShare": 0.06,
+     "veh06_18": 1086,
+     "veh18_22": 256,
+     "veh22_06": 156
+    },
+    {
+     "street": "Sankt Göransgatan",
+     "distM": 116,
+     "adtAllDirections": 1455,
+     "heavyShare": 0.08,
+     "veh06_18": 1054,
+     "veh18_22": 249,
+     "veh22_06": 152
+    }
+   ],
+   "bike": [],
+   "ped": []
+  }
+ }
+}
