@@ -3,7 +3,7 @@
 // Pure, deterministic microsimulation: design + demand + seed -> summary, frames, events.
 // No I/O here; index.js wraps it in HTTP.
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 const ARMS = ['N', 'E', 'S', 'W'];
 const ARM_ANGLE = { N: 90, E: 0, S: -90, W: 180 };
 const TURNS = ['L', 'S', 'R'];
@@ -247,13 +247,32 @@ function normalizeDemand(raw, design, errors, warnings = []) {
   const durationSec = Number(d.durationSec) || 900;
   if (durationSec < 60 || durationSec > 7200) errors.push('demand.durationSec must be 60 to 7200');
   const seed = d.seed == null ? 1 : Number(d.seed) | 0;
+  const arms = normalizeArms(d.arms, design, errors, warnings, 'demand.arms');
+  // Optional time-varying demand: schedule [{ atSec, arms }] replaces the arm rates from atSec on.
+  const steps = [{ atSec: 0, arms }];
+  if (d.schedule != null) {
+    if (!Array.isArray(d.schedule) || d.schedule.length > 48) errors.push('demand.schedule must be an array of at most 48 steps');
+    else {
+      d.schedule.forEach((st, i) => {
+        const at = Number(st && st.atSec);
+        if (!(at >= 0) || at < steps[steps.length - 1].atSec || (at === steps[steps.length - 1].atSec && i > 0)) { errors.push(`demand.schedule[${i}].atSec must be >= 0 and increasing`); return; }
+        const stepArms = normalizeArms(st.arms, design, errors, warnings, `demand.schedule[${i}].arms`);
+        if (at === 0) steps[0] = { atSec: 0, arms: stepArms }; else steps.push({ atSec: at, arms: stepArms });
+      });
+    }
+  }
+  return { durationSec, seed, arms: steps[0].arms, steps };
+}
+
+function normalizeArms(srcArms, design, errors, warnings, where) {
   const arms = {};
-  const src = d.arms && typeof d.arms === 'object' ? d.arms : {};
+  const warn = (m) => { if (!warnings.includes(m)) warnings.push(m); };
+  const src = srcArms && typeof srcArms === 'object' ? srcArms : {};
   for (const id of design.armIds) {
     const a = src[id] || {};
     const num = (x, name, max) => {
       const v = x == null ? 0 : Number(x);
-      if (!(v >= 0 && v <= max)) { errors.push(`demand.arms.${id}.${name} must be 0 to ${max}`); return 0; }
+      if (!(v >= 0 && v <= max)) { errors.push(`${where}.${id}.${name} must be 0 to ${max}`); return 0; }
       return v;
     };
     const vehPerHour = num(a.vehPerHour, 'vehPerHour', 3000);
@@ -266,13 +285,13 @@ function normalizeDemand(raw, design, errors, warnings = []) {
     const tw = a.turning || { L: 0.2, S: 0.6, R: 0.2 };
     for (const t of TURNS) {
       const w = Number(tw[t]) || 0;
-      if (w < 0) errors.push(`demand.arms.${id}.turning.${t} must be >= 0`);
+      if (w < 0) errors.push(`${where}.${id}.turning.${t} must be >= 0`);
       if (w > 0 && allowed(t)) { bikeTurning[t] = w; if (reachable.has(t)) turning[t] = w; }
       if (w > 0 && vehPerHour > 0) {
-        if (!design.arms[exitArmOf(id, t)]) warnings.push(`${id}:${t} has demand but the design has no arm ${exitArmOf(id, t)}; spread over the other turns`);
-        else if (design.banned.has(`${id}:${t}`)) warnings.push(`${id}:${t} is banned; its demand is spread over the other turns`);
-        else if (!reachable.has(t)) warnings.push(`${id}:${t} has demand but no lane on arm ${id} allows ${t}; spread over the other turns`);
-        else if (design.phases && !design.phases.some((p) => p.movements.has(`${id}:${t}`))) warnings.push(`${id}:${t} never gets green in any phase; vehicles will wait forever`);
+        if (!design.arms[exitArmOf(id, t)]) warn(`${id}:${t} has demand but the design has no arm ${exitArmOf(id, t)}; spread over the other turns`);
+        else if (design.banned.has(`${id}:${t}`)) warn(`${id}:${t} is banned; its demand is spread over the other turns`);
+        else if (!reachable.has(t)) warn(`${id}:${t} has demand but no lane on arm ${id} allows ${t}; spread over the other turns`);
+        else if (design.phases && !design.phases.some((p) => p.movements.has(`${id}:${t}`))) warn(`${id}:${t} never gets green in any phase; vehicles will wait forever`);
       }
     }
     const mix = {};
@@ -285,7 +304,7 @@ function normalizeDemand(raw, design, errors, warnings = []) {
       bikePerHour: arm.bikeLane && Object.keys(bikeTurning).length ? bikePerHour : 0, bikeTurning,
     };
   }
-  return { durationSec, seed, arms };
+  return arms;
 }
 
 // ---------------------------------------------------------------- geometry
@@ -483,17 +502,24 @@ function simulate(rawDesign, rawDemand, options = {}) {
 
   // Arrivals are drawn per (arm, stream) from the seed only, so every design sees the same traffic.
   const arrivals = [];
+  // Piecewise-constant rates per schedule step; a single step reproduces a plain Poisson stream.
+  const dSteps = demand.steps || [{ atSec: 0, arms: demand.arms }];
   for (const id of ARMS) {
-    const a = demand.arms[id];
-    if (!a) continue;
-    for (const [kind, perHour] of [['veh', a.vehPerHour], ['bike', a.bikePerHour], ['ped', a.pedPerHour]]) {
-      if (!(perHour > 0)) continue;
+    if (!demand.arms[id]) continue;
+    for (const [kind, key] of [['veh', 'vehPerHour'], ['bike', 'bikePerHour'], ['ped', 'pedPerHour']]) {
+      if (!dSteps.some((st) => st.arms[id][key] > 0)) continue;
       const rng = mulberry32(hashSeed(demand.seed, `${id}:${kind}`));
-      const rate = perHour / 3600;
-      let t = -Math.log(1 - rng()) / rate;
+      const minGap = kind === 'veh' ? 1.0 : 0.3;
+      let k = 0, t = 0, first = true;
       while (t < T) {
-        arrivals.push({ t, arm: id, kind, u1: rng(), u2: rng(), u3: rng() });
-        t += Math.max(kind === 'veh' ? 1.0 : 0.3, -Math.log(1 - rng()) / rate);
+        const end = k + 1 < dSteps.length ? Math.min(T, dSteps[k + 1].atSec) : T;
+        const rate = dSteps[k].arms[id][key] / 3600;
+        if (!(rate > 0)) { t = end; k++; continue; }
+        const gap = -Math.log(1 - rng()) / rate;
+        const nt = t + (first ? gap : Math.max(minGap, gap));
+        if (nt >= end) { t = end; k++; continue; }
+        t = nt; first = false;
+        arrivals.push({ t, arm: id, kind, step: k, u1: rng(), u2: rng(), u3: rng() });
       }
     }
   }
@@ -520,7 +546,7 @@ function simulate(rawDesign, rawDemand, options = {}) {
   }
 
   function spawnVehicle(r) {
-    const a = demand.arms[r.arm];
+    const a = dSteps[r.step || 0].arms[r.arm];
     const isBike = r.kind === 'bike';
     const turn = pickWeighted(r.u1, isBike ? a.bikeTurning : a.turning);
     const clsName = isBike ? 'bike' : pickWeighted(r.u2, a.mix);

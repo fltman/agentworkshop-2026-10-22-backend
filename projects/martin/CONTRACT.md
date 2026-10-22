@@ -82,6 +82,11 @@ opposing straight and right traffic.
 `durationSec` is 60 to 7200. Arms in the demand that the design lacks are ignored. Turning and mix
 are normalised, so they do not have to sum to exactly 1.
 
+Optional `schedule` (v0.3, matches backend `varying=1`): `[{ "atSec": 3600, "arms": { ... } }, ...]`, at most 48
+steps, `atSec` increasing. From each `atSec` the step's arms (same shape as `arms`) replace the rates, turning and
+mix; top-level `arms` apply before the first step, and a step at 0 replaces them. Other keys in a step (such as
+`hour`) are ignored. Arrivals before a step are identical to a run without the schedule.
+
 ## Endpoints
 
 | method | path | body / query | answer |
@@ -95,7 +100,7 @@ are normalised, so they do not have to sum to exactly 1.
 | GET | `/t/martin/runs/<runId>/events` | `?type=<type>&from=<sec>&to=<sec>` | `{ events: [...] }` |
 | POST | `/t/martin/compare` | `{ designs: [d1, d2, ...], demand }` | `{ demand, results: [{ runId, design, summary }] }` |
 
-`options`: `{ "frameEverySec": 1, "dt": 0.5 }`. Runs are kept in memory (the last 40).
+`options`: `{ "frameEverySec": 1, "dt": 0.5 }`. Runs are kept in memory (the last 40). Stored frames are capped at about 1800 per run: runs longer than 1800 s get frameEverySec of at least ceil(durationSec / 1800).
 `warnings` lists things in the input that the engine had to work around, e.g.
 `"E:L never gets green in any phase; vehicles will wait forever"` or `"N:L is banned; its demand is spread over the other turns"`.
 Errors: HTTP 400 `{ "error": "invalid input", "details": ["arms[0].id must be N, E, S or W"] }`.
