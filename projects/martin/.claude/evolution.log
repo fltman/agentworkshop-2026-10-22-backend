@@ -1,0 +1,6 @@
+# HIVE Evolution Log
+2026-10-22 10:02 SPAWN: traffic-microsim (need: vehicle movement, demand-to-arrivals, IDM car-following)
+2026-10-22 10:02 SPAWN: signal-control (need: lights, roundabouts, right-of-way, turn restrictions)
+2026-10-22 10:02 SPAWN: sim-api (need: contract and /t/martin/ endpoints for other teams)
+2026-10-22 10:24 SPAWN: sim-calibration (capacity/gridlock diagnosis came up five times while building v0.1)
+2026-10-22 10:24 ENERGY: traffic-microsim 90, signal-control 80, sim-api 70 (all used for v0.1, PR #5)
